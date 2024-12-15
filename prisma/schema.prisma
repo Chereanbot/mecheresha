@@ -1,0 +1,472 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mongodb"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id             String            @id @default(auto()) @map("_id") @db.ObjectId
+  email          String            @unique
+  phone          String?           @unique
+  password       String
+  fullName       String
+  username       String?           
+  emailVerified  Boolean           @default(false)
+  phoneVerified  Boolean           @default(false)
+  role           Role              @default(CLIENT)
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+  otpVerifications OTPVerification[]
+  
+  // Admin related fields
+  isAdmin        Boolean           @default(false)
+  permissions    Permission[]      @relation(fields: [permissionIds], references: [id])
+  permissionIds  String[]          @db.ObjectId
+  adminRole      AdminRole?        @relation(fields: [adminRoleId], references: [id])
+  adminRoleId    String?           @db.ObjectId
+  activities     Activity[]
+  notifications  Notification[]
+  documents      Document[]
+
+  // Case Relations
+  clientCases      Case[]    @relation("ClientCases")
+  lawyerCases      Case[]    @relation("LawyerCases")
+  coordinatorCases Case[]    @relation("CoordinatorCases")
+  
+  // Assignment Relations
+  assignedCases    CaseAssignment[] @relation("AssignedBy")
+  assignedToCases  CaseAssignment[] @relation("AssignedTo")
+  
+  // Profile Relations
+  lawyerProfile    LawyerProfile?
+  coordinatorProfile Coordinator?
+  
+  // Document Relations
+  uploadedDocuments CaseDocument[]
+  caseActivities   CaseActivity[]
+  filedAppeals     Appeal[]
+  caseNotes        CaseNote[]
+  
+  // Service Relations
+  serviceRequests  ServiceRequest[]
+
+  @@index([email, phone, username])
+}
+
+model OTPVerification {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId    String   @db.ObjectId
+  user      User     @relation(fields: [userId], references: [id])
+  otp       String
+  type      OTPType
+  expiresAt DateTime
+  verified  Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// Admin Models
+model AdminRole {
+  id          String      @id @default(auto()) @map("_id") @db.ObjectId
+  name        String      @unique
+  description String?
+  users       User[]
+  permissions Permission[] @relation(fields: [permissionIds], references: [id])
+  permissionIds String[]  @db.ObjectId
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+}
+
+model Permission {
+  id          String      @id @default(auto()) @map("_id") @db.ObjectId
+  name        String      @unique
+  description String?
+  module      String
+  users       User[]      @relation(fields: [userIds], references: [id])
+  userIds     String[]    @db.ObjectId
+  roles       AdminRole[] @relation(fields: [roleIds], references: [id])
+  roleIds     String[]    @db.ObjectId
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+}
+
+model Activity {
+  id          String    @id @default(auto()) @map("_id") @db.ObjectId
+  userId      String    @db.ObjectId
+  user        User      @relation(fields: [userId], references: [id])
+  action      String
+  details     Json?
+  ipAddress   String?
+  userAgent   String?
+  createdAt   DateTime  @default(now())
+}
+
+model Notification {
+  id        String    @id @default(auto()) @map("_id") @db.ObjectId
+  userId    String    @db.ObjectId
+  user      User      @relation(fields: [userId], references: [id])
+  title     String
+  message   String
+  type      NotificationType
+  read      Boolean   @default(false)
+  readAt    DateTime?
+  createdAt DateTime  @default(now())
+}
+
+model Document {
+  id          String    @id @default(auto()) @map("_id") @db.ObjectId
+  userId      String    @db.ObjectId
+  user        User      @relation(fields: [userId], references: [id])
+  title       String
+  type        String
+  path        String
+  size        Int
+  mimeType    String
+  uploadedAt  DateTime  @default(now())
+}
+
+enum OTPType {
+  EMAIL
+  PHONE
+}
+
+enum Role {
+  SUPER_ADMIN
+  ADMIN
+  LAWYER
+  CLIENT
+}
+
+enum NotificationType {
+  INFO
+  SUCCESS
+  WARNING
+  ERROR
+}
+
+// Case Management
+model Case {
+  id            String    @id @default(auto()) @map("_id") @db.ObjectId
+  caseNumber    String    @unique
+  title         String
+  description   String
+  status        CaseStatus
+  priority      Priority
+  type          CaseType
+  startDate     DateTime
+  dueDate       DateTime?
+  
+  // Relations
+  clientId      String    @db.ObjectId
+  client        User      @relation("ClientCases", fields: [clientId], references: [id])
+  lawyerId      String?   @db.ObjectId
+  lawyer        User?     @relation("LawyerCases", fields: [lawyerId], references: [id])
+  coordinatorId String?   @db.ObjectId
+  coordinator   User?     @relation("CoordinatorCases", fields: [coordinatorId], references: [id])
+  officeId      String    @db.ObjectId
+  office        Office    @relation(fields: [officeId], references: [id])
+  
+  documents     CaseDocument[]
+  activities    CaseActivity[]
+  appeals       Appeal[]
+  notes         CaseNote[]
+  assignments   CaseAssignment[]
+  
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@index([caseNumber, status, priority])
+}
+
+model CaseAssignment {
+  id            String    @id @default(auto()) @map("_id") @db.ObjectId
+  caseId        String    @db.ObjectId
+  case          Case      @relation(fields: [caseId], references: [id])
+  assignedById  String    @db.ObjectId
+  assignedBy    User      @relation("AssignedBy", fields: [assignedById], references: [id])
+  assignedToId  String    @db.ObjectId
+  assignedTo    User      @relation("AssignedTo", fields: [assignedToId], references: [id])
+  status        AssignmentStatus
+  notes         String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
+// Lawyer Management
+model LawyerProfile {
+  id              String    @id @default(auto()) @map("_id") @db.ObjectId
+  userId          String    @db.ObjectId @unique
+  user            User      @relation(fields: [userId], references: [id])
+  specializations String[]
+  experience      Int
+  rating          Float?
+  caseLoad        Int       @default(0)
+  availability    Boolean   @default(true)
+  officeId        String    @db.ObjectId
+  office          Office    @relation(fields: [officeId], references: [id])
+  performance     Performance[]
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+}
+
+// Coordinator Management
+model Coordinator {
+  id            String    @id @default(auto()) @map("_id") @db.ObjectId
+  userId        String    @db.ObjectId @unique
+  user          User      @relation(fields: [userId], references: [id])
+  type          CoordinatorType
+  officeId      String    @db.ObjectId
+  office        Office    @relation(fields: [officeId], references: [id])
+  projects      Project[]
+  assignments   CoordinatorAssignment[]
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
+model Project {
+  id            String    @id @default(auto()) @map("_id") @db.ObjectId
+  name          String
+  description   String
+  startDate     DateTime
+  endDate       DateTime?
+  status        ProjectStatus
+  coordinatorId String    @db.ObjectId
+  coordinator   Coordinator @relation(fields: [coordinatorId], references: [id])
+  assignments   CoordinatorAssignment[]
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
+// Office Management
+model Office {
+  id            String    @id @default(auto()) @map("_id") @db.ObjectId
+  name          String
+  location      String
+  capacity      Int
+  resources     Resource[]
+  lawyers       LawyerProfile[]
+  coordinators  Coordinator[]
+  cases         Case[]
+  performance   OfficePerformance[]
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
+model Resource {
+  id            String    @id @default(auto()) @map("_id") @db.ObjectId
+  name          String
+  type          ResourceType
+  status        ResourceStatus
+  officeId      String    @db.ObjectId
+  office        Office    @relation(fields: [officeId], references: [id])
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
+// Performance Tracking
+model Performance {
+  id            String    @id @default(auto()) @map("_id") @db.ObjectId
+  lawyerId      String    @db.ObjectId
+  lawyer        LawyerProfile @relation(fields: [lawyerId], references: [id])
+  metric        String
+  value         Float
+  period        String
+  createdAt     DateTime  @default(now())
+}
+
+model OfficePerformance {
+  id            String    @id @default(auto()) @map("_id") @db.ObjectId
+  officeId      String    @db.ObjectId
+  office        Office    @relation(fields: [officeId], references: [id])
+  metric        String
+  value         Float
+  period        String
+  createdAt     DateTime  @default(now())
+}
+
+// Client Services
+model ServicePackage {
+  id            String    @id @default(auto()) @map("_id") @db.ObjectId
+  name          String
+  description   String
+  price         Float
+  features      String[]
+  active        Boolean   @default(true)
+  requests      ServiceRequest[]
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
+model ServiceRequest {
+  id            String    @id @default(auto()) @map("_id") @db.ObjectId
+  clientId      String    @db.ObjectId
+  client        User      @relation(fields: [clientId], references: [id])
+  packageId     String    @db.ObjectId
+  package       ServicePackage @relation(fields: [packageId], references: [id])
+  status        RequestStatus
+  paymentStatus PaymentStatus
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
+// Additional Enums
+enum CaseStatus {
+  PENDING
+  ACTIVE
+  ON_HOLD
+  CLOSED
+  ARCHIVED
+}
+
+enum Priority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+enum CaseType {
+  CIVIL
+  CRIMINAL
+  CORPORATE
+  FAMILY
+  OTHER
+}
+
+enum AssignmentStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+  COMPLETED
+}
+
+enum CoordinatorType {
+  PROJECT_BASED
+  PERMANENT
+}
+
+enum ProjectStatus {
+  PLANNED
+  IN_PROGRESS
+  COMPLETED
+  ON_HOLD
+  CANCELLED
+}
+
+enum ResourceType {
+  EQUIPMENT
+  FACILITY
+  VEHICLE
+  OTHER
+}
+
+enum ResourceStatus {
+  AVAILABLE
+  IN_USE
+  MAINTENANCE
+  RETIRED
+}
+
+enum RequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELLED
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  REFUNDED
+  FAILED
+}
+
+// Case Related Models
+model CaseDocument {
+  id          String    @id @default(auto()) @map("_id") @db.ObjectId
+  caseId      String    @db.ObjectId
+  case        Case      @relation(fields: [caseId], references: [id])
+  title       String
+  type        String
+  path        String
+  size        Int
+  mimeType    String
+  uploadedAt  DateTime  @default(now())
+  uploadedBy  String    @db.ObjectId
+  uploader    User      @relation(fields: [uploadedBy], references: [id])
+}
+
+model CaseActivity {
+  id          String    @id @default(auto()) @map("_id") @db.ObjectId
+  caseId      String    @db.ObjectId
+  case        Case      @relation(fields: [caseId], references: [id])
+  action      String
+  description String
+  performedBy String    @db.ObjectId
+  performer   User      @relation(fields: [performedBy], references: [id])
+  createdAt   DateTime  @default(now())
+}
+
+model Appeal {
+  id          String    @id @default(auto()) @map("_id") @db.ObjectId
+  caseId      String    @db.ObjectId
+  case        Case      @relation(fields: [caseId], references: [id])
+  title       String
+  description String
+  status      AppealStatus
+  filedBy     String    @db.ObjectId
+  filer       User      @relation(fields: [filedBy], references: [id])
+  filedDate   DateTime  @default(now())
+  hearingDate DateTime?
+  decision    String?
+  decidedAt   DateTime?
+  documents   AppealDocument[]
+}
+
+model AppealDocument {
+  id          String    @id @default(auto()) @map("_id") @db.ObjectId
+  appealId    String    @db.ObjectId
+  appeal      Appeal    @relation(fields: [appealId], references: [id])
+  title       String
+  path        String
+  uploadedAt  DateTime  @default(now())
+}
+
+model CaseNote {
+  id          String    @id @default(auto()) @map("_id") @db.ObjectId
+  caseId      String    @db.ObjectId
+  case        Case      @relation(fields: [caseId], references: [id])
+  content     String
+  createdBy   String    @db.ObjectId
+  creator     User      @relation(fields: [createdBy], references: [id])
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  isPrivate   Boolean   @default(false)
+}
+
+// Coordinator Assignment
+model CoordinatorAssignment {
+  id            String    @id @default(auto()) @map("_id") @db.ObjectId
+  coordinatorId String    @db.ObjectId
+  coordinator   Coordinator @relation(fields: [coordinatorId], references: [id])
+  projectId     String?   @db.ObjectId
+  project       Project?  @relation(fields: [projectId], references: [id])
+  startDate     DateTime
+  endDate       DateTime?
+  status        AssignmentStatus
+  notes         String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
+// Additional Enum
+enum AppealStatus {
+  PENDING
+  SCHEDULED
+  HEARD
+  DECIDED
+  WITHDRAWN
+}
