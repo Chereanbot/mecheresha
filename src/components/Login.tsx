@@ -38,19 +38,26 @@ const Login = () => {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          identifier: formData.identifier.trim(),
+          email: formData.identifier.trim(),
           password: formData.password.trim()
         }),
         credentials: 'include'
       });
 
-      const data = await response.json();
+      let data;
+      const contentType = response.headers.get("content-type");
+      if (contentType && contentType.indexOf("application/json") !== -1) {
+        data = await response.json();
+      } else {
+        throw new Error('Server returned non-JSON response');
+      }
+
       console.log('Server response:', data);
 
       hideToast(loadingToast);
 
       if (!response.ok) {
-        throw new Error(data.message || 'Authentication failed');
+        throw new Error(data.error || data.message || 'Authentication failed');
       }
 
       showToast(data.message || 'Login successful!', 'success');
@@ -58,9 +65,10 @@ const Login = () => {
       // Store token
       if (data.token) {
         localStorage.setItem('token', data.token);
+        localStorage.setItem('userRole', data.user.role);
       }
 
-      // Add a small delay to show the success message
+      // Redirect based on the URL provided by the server
       setTimeout(() => {
         window.location.href = data.redirectUrl || '/client/dashboard';
       }, 1000);

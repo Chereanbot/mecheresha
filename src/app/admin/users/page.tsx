@@ -1,220 +1,431 @@
 "use client";
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { userService } from '@/services/user.service';
 import { motion } from 'framer-motion';
 import {
   HiOutlineUserAdd,
   HiOutlineSearch,
   HiOutlineFilter,
-  HiOutlineDotsVertical,
+  HiOutlineChartPie,
+  HiOutlineShieldCheck,
+  HiOutlineDocumentReport,
+  HiOutlineBell,
+  HiOutlineExclamation,
   HiOutlinePencil,
-  HiOutlineTrash,
-  HiOutlineLockClosed,
+  HiOutlineDotsVertical,
   HiOutlineCheck,
-  HiOutlineX
+  HiOutlineClock,
+  HiOutlineBan,
+  HiOutlineTrash
 } from 'react-icons/hi';
+import UserTable from '@/components/admin/users/UserTable';
+import EditUserModal from '@/components/admin/users/EditUserModal';
+import { toast } from 'react-hot-toast';
+import AddUserModal from '@/components/admin/users/AddUserModal';
 
-interface User {
-  id: string;
-  name: string;
-  email: string;
-  role: string;
-  status: 'active' | 'inactive' | 'pending';
-  lastLogin: string;
-  createdAt: string;
+interface UserStats {
+  total: number;
+  active: number;
+  pending: number;
+  blocked: number;
+  newToday: number;
 }
 
-const mockUsers: User[] = [
-  {
-    id: '1',
-    name: 'John Doe',
-    email: 'john@example.com',
-    role: 'Admin',
-    status: 'active',
-    lastLogin: '2024-03-10 14:30',
-    createdAt: '2024-01-15'
-  },
-  // Add more mock users
-];
+function TabButton({ 
+  children, 
+  active = false, 
+  role = 'all', 
+  onRoleSelect 
+}: { 
+  children: React.ReactNode;
+  active?: boolean;
+  role?: string;
+  onRoleSelect: (role: string) => void;
+}) {
+  return (
+    <button
+      onClick={() => onRoleSelect(role)}
+      className={`px-4 py-2 text-sm font-medium ${
+        active
+          ? 'border-b-2 border-primary-500 text-primary-600'
+          : 'text-gray-500 hover:text-gray-700 hover:border-gray-300'
+      }`}
+    >
+      {children}
+    </button>
+  );
+}
 
-const UsersPage = () => {
-  const [searchTerm, setSearchTerm] = useState('');
+export default function AdminUsersPage() {
+  const [users, setUsers] = useState([]);
   const [selectedRole, setSelectedRole] = useState('all');
-  const [selectedStatus, setSelectedStatus] = useState('all');
+  const [stats, setStats] = useState<UserStats>({
+    total: 0,
+    active: 0,
+    pending: 0,
+    blocked: 0,
+    newToday: 0
+  });
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [selectedUser, setSelectedUser] = useState<User | null>(null);
+  const [showAddModal, setShowAddModal] = useState(false);
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'active':
-        return 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-300';
-      case 'inactive':
-        return 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-300';
-      default:
-        return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-300';
+  useEffect(() => {
+    loadUserData();
+  }, []);
+
+  const loadUserData = async (role = 'all') => {
+    try {
+      setLoading(true);
+      console.log('Loading users for role:', role); // Debug log
+
+      const [usersResponse, statsResponse] = await Promise.all([
+        userService.getAllUsers({ role }),
+        userService.getUserStats()
+      ]);
+      
+      console.log('Users response:', usersResponse); // Debug log
+      
+      setUsers(usersResponse.data);
+      setStats({
+        total: statsResponse.overview.total,
+        active: statsResponse.overview.active,
+        pending: statsResponse.overview.pending,
+        blocked: statsResponse.overview.blocked,
+        newToday: statsResponse.overview.newToday
+      });
+    } catch (err) {
+      console.error('Failed to load user data:', err);
+      setError('Failed to load user data');
+    } finally {
+      setLoading(false);
     }
   };
 
+  const handleEditUser = (user: User) => {
+    setSelectedUser(user);
+    setShowEditModal(true);
+  };
+
+  const handleDeleteUser = async (userId: string) => {
+    if (window.confirm('Are you sure you want to delete this user?')) {
+      try {
+        await userService.deleteUser(userId);
+        loadUserData(selectedRole);
+        toast.success('User deleted successfully');
+      } catch (error) {
+        toast.error('Failed to delete user');
+      }
+    }
+  };
+
+  const handleBanUser = async (userId: string) => {
+    if (window.confirm('Are you sure you want to ban this user?')) {
+      try {
+        await userService.updateUserStatus(userId, 'BANNED');
+        loadUserData(selectedRole);
+        toast.success('User banned successfully');
+      } catch (error) {
+        toast.error('Failed to ban user');
+      }
+    }
+  };
+
+  const handleStatusChange = async (userId: string, status: UserStatus) => {
+    try {
+      await userService.updateUserStatus(userId, status);
+      loadUserData(selectedRole);
+      toast.success(`User status updated to ${status}`);
+    } catch (error) {
+      toast.error('Failed to update user status');
+    }
+  };
+
+  const handleRoleChange = async (userId: string, role: Role) => {
+    try {
+      await userService.updateUserRole(userId, role);
+      loadUserData(selectedRole);
+      toast.success(`User role updated to ${role}`);
+    } catch (error) {
+      toast.error('Failed to update user role');
+    }
+  };
+
+  const handleRoleFilter = (role: string) => {
+    setSelectedRole(role);
+    loadUserData(role);
+  };
+
+  const handleAddUser = async (userData: any) => {
+    try {
+      const response = await userService.registerUser(userData);
+      if (response.success) {
+        await loadUserData(selectedRole);
+        toast.success('User created successfully');
+        setShowAddModal(false);
+      } else {
+        toast.error(response.error || 'Failed to create user');
+      }
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to create user');
+      console.error('Error creating user:', error);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-500"></div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center p-6 bg-white rounded-lg shadow-lg">
+          <div className="text-red-500 text-xl mb-4">⚠️ Error</div>
+          <p className="text-gray-600 mb-4">{error}</p>
+          <button
+            onClick={loadUserData}
+            className="px-4 py-2 bg-primary-500 text-white rounded-lg hover:bg-primary-600"
+          >
+            Try Again
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 p-6">
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-2xl font-bold">User Management</h1>
           <p className="text-gray-600 dark:text-gray-400">
-            Manage and monitor user accounts
+            Manage and monitor all user accounts
           </p>
         </div>
-        <button className="flex items-center space-x-2 px-4 py-2 bg-primary-500 
-          text-white rounded-lg hover:bg-primary-600 transition-colors"
+        <button 
+          onClick={() => setShowAddModal(true)}
+          className="flex items-center space-x-2 px-4 py-2 bg-primary-500 text-white rounded-lg
+            hover:bg-primary-600 transition-colors"
         >
           <HiOutlineUserAdd className="w-5 h-5" />
-          <span>Add User</span>
+          <span>Add New User</span>
         </button>
       </div>
 
-      {/* Filters */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="relative">
-          <input
-            type="text"
-            placeholder="Search users..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 rounded-lg border border-gray-200 
-              dark:border-gray-700 dark:bg-gray-800"
-          />
-          <HiOutlineSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 
-            text-gray-400 w-5 h-5" />
-        </div>
-        <select
-          value={selectedRole}
-          onChange={(e) => setSelectedRole(e.target.value)}
-          className="px-4 py-2 rounded-lg border border-gray-200 dark:border-gray-700 
-            dark:bg-gray-800"
-        >
-          <option value="all">All Roles</option>
-          <option value="admin">Admin</option>
-          <option value="user">User</option>
-          <option value="moderator">Moderator</option>
-        </select>
-        <select
-          value={selectedStatus}
-          onChange={(e) => setSelectedStatus(e.target.value)}
-          className="px-4 py-2 rounded-lg border border-gray-200 dark:border-gray-700 
-            dark:bg-gray-800"
-        >
-          <option value="all">All Status</option>
-          <option value="active">Active</option>
-          <option value="inactive">Inactive</option>
-          <option value="pending">Pending</option>
-        </select>
+      {/* Stats Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <StatsCard
+          title="Total Users"
+          value={stats.total}
+          icon={HiOutlineChartPie}
+          trend={+15}
+        />
+        <StatsCard
+          title="Active Users"
+          value={stats.active}
+          icon={HiOutlineShieldCheck}
+          trend={+8}
+          type="success"
+        />
+        <StatsCard
+          title="Pending Verification"
+          value={stats.pending}
+          icon={HiOutlineBell}
+          trend={-3}
+          type="warning"
+        />
+        <StatsCard
+          title="Blocked Users"
+          value={stats.blocked}
+          icon={HiOutlineExclamation}
+          trend={+2}
+          type="danger"
+        />
       </div>
 
-      {/* Users Table */}
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden">
-        <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-          <thead className="bg-gray-50 dark:bg-gray-700">
-            <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 
-                dark:text-gray-400 uppercase tracking-wider"
-              >
-                User
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 
-                dark:text-gray-400 uppercase tracking-wider"
-              >
-                Role
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 
-                dark:text-gray-400 uppercase tracking-wider"
-              >
-                Status
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 
-                dark:text-gray-400 uppercase tracking-wider"
-              >
-                Last Login
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 
-                dark:text-gray-400 uppercase tracking-wider"
-              >
-                Actions
-              </th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-            {mockUsers.map((user) => (
-              <motion.tr
-                key={user.id}
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                className="hover:bg-gray-50 dark:hover:bg-gray-700/50"
-              >
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="flex items-center">
-                    <div className="flex-shrink-0 h-10 w-10">
-                      <img
-                        className="h-10 w-10 rounded-full"
-                        src={`https://ui-avatars.com/api/?name=${user.name}&background=random`}
-                        alt=""
-                      />
-                    </div>
-                    <div className="ml-4">
-                      <div className="text-sm font-medium text-gray-900 dark:text-white">
-                        {user.name}
-                      </div>
-                      <div className="text-sm text-gray-500 dark:text-gray-400">
-                        {user.email}
-                      </div>
-                    </div>
-                  </div>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <span className="px-2 inline-flex text-xs leading-5 font-semibold 
-                    rounded-full bg-primary-100 text-primary-800 dark:bg-primary-900/20 
-                    dark:text-primary-300"
-                  >
-                    {user.role}
-                  </span>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <span className={`px-2 inline-flex text-xs leading-5 font-semibold 
-                    rounded-full ${getStatusColor(user.status)}`}
-                  >
-                    {user.status}
-                  </span>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 
-                  dark:text-gray-400"
-                >
-                  {user.lastLogin}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                  <div className="flex space-x-3">
-                    <button className="text-primary-600 hover:text-primary-900 
-                      dark:hover:text-primary-400"
-                    >
-                      <HiOutlinePencil className="w-5 h-5" />
-                    </button>
-                    <button className="text-red-600 hover:text-red-900 
-                      dark:hover:text-red-400"
-                    >
-                      <HiOutlineTrash className="w-5 h-5" />
-                    </button>
-                    <button className="text-gray-600 hover:text-gray-900 
-                      dark:hover:text-gray-400"
-                    >
-                      <HiOutlineLockClosed className="w-5 h-5" />
-                    </button>
-                  </div>
-                </td>
-              </motion.tr>
-            ))}
-          </tbody>
-        </table>
+      {/* Quick Actions */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <QuickActionCard
+          title="Pending Verifications"
+          count={stats.pending}
+          path="/admin/users/verification"
+          description="Users awaiting verification"
+        />
+        <QuickActionCard
+          title="Security Alerts"
+          count={5}
+          path="/admin/users/security"
+          description="Recent security incidents"
+        />
+        <QuickActionCard
+          title="Access Requests"
+          count={8}
+          path="/admin/users/access"
+          description="Pending access requests"
+        />
+      </div>
+
+      {/* Main Content Tabs */}
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow">
+        <div className="border-b border-gray-200 dark:border-gray-700">
+          <nav className="flex -mb-px">
+            <TabButton 
+              active={selectedRole === 'all'} 
+              role="all" 
+              onRoleSelect={handleRoleFilter}
+            >
+              All Users
+            </TabButton>
+            <TabButton 
+              active={selectedRole === 'SUPER_ADMIN'} 
+              role="SUPER_ADMIN" 
+              onRoleSelect={handleRoleFilter}
+            >
+              Super Admins
+            </TabButton>
+            <TabButton 
+              active={selectedRole === 'ADMIN'} 
+              role="ADMIN" 
+              onRoleSelect={handleRoleFilter}
+            >
+              Admins
+            </TabButton>
+            <TabButton 
+              active={selectedRole === 'LAWYER'} 
+              role="LAWYER" 
+              onRoleSelect={handleRoleFilter}
+            >
+              Lawyers
+            </TabButton>
+            <TabButton 
+              active={selectedRole === 'CLIENT'} 
+              role="CLIENT" 
+              onRoleSelect={handleRoleFilter}
+            >
+              Clients
+            </TabButton>
+          </nav>
+        </div>
+
+        {/* Search and Filters */}
+        <div className="p-4 flex space-x-4">
+          <div className="flex-1 relative">
+            <input
+              type="text"
+              placeholder="Search users..."
+              className="w-full pl-10 pr-4 py-2 rounded-lg border dark:bg-gray-700 
+                dark:border-gray-600 dark:text-gray-200"
+            />
+            <HiOutlineSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+          </div>
+          <button className="px-4 py-2 bg-gray-100 dark:bg-gray-700 rounded-lg 
+            flex items-center space-x-2 hover:bg-gray-200 dark:hover:bg-gray-600">
+            <HiOutlineFilter className="w-5 h-5" />
+            <span>Filters</span>
+          </button>
+        </div>
+
+        {/* User Table */}
+        <div className="overflow-x-auto">
+          <UserTable 
+            users={users} 
+            onEdit={handleEditUser} 
+            onDelete={handleDeleteUser}
+            onBan={handleBanUser}
+            onStatusChange={handleStatusChange}
+            onRoleChange={handleRoleChange}
+          />
+        </div>
+      </div>
+
+      {/* Recent Activity */}
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4">
+        <h2 className="text-lg font-semibold mb-4">Recent Activity</h2>
+        <div className="space-y-4">
+          {/* Activity items */}
+        </div>
+      </div>
+
+      {/* Edit User Modal */}
+      {showEditModal && selectedUser && (
+        <EditUserModal
+          user={selectedUser}
+          onClose={() => {
+            setShowEditModal(false);
+            setSelectedUser(null);
+          }}
+          onSave={async (updatedUser) => {
+            try {
+              await userService.updateUser(selectedUser.id, updatedUser);
+              loadUserData(selectedRole);
+              setShowEditModal(false);
+              setSelectedUser(null);
+              toast.success('User updated successfully');
+            } catch (error) {
+              toast.error('Failed to update user');
+            }
+          }}
+        />
+      )}
+
+      {/* Add User Modal */}
+      {showAddModal && (
+        <AddUserModal
+          onClose={() => setShowAddModal(false)}
+          onSubmit={handleAddUser}
+        />
+      )}
+    </div>
+  );
+}
+
+// Helper Components
+function StatsCard({ title, value, icon: Icon, trend, type = 'default' }: { title: string, value: number, icon: React.ElementType, trend: number, type: string }) {
+  const colors = {
+    default: 'bg-blue-100 text-black dark:bg-blue-900/40 dark:text-blue-200',
+    success: 'bg-green-100 text-black dark:bg-green-900/40 dark:text-green-200',
+    warning: 'bg-yellow-100 text-black dark:bg-yellow-900/40 dark:text-yellow-200',
+    danger: 'bg-red-100 text-black dark:bg-red-900/40 dark:text-red-200'
+  };
+
+  return (
+    <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <p className="text-sm text-gray-600 dark:text-gray-400">{title}</p>
+          <h3 className="text-2xl font-bold text-black dark:text-white mt-1">{value}</h3>
+        </div>
+        <div className={`p-3 rounded-full ${colors[type]}`}>
+          <Icon className="w-6 h-6" />
+        </div>
+      </div>
+      <div className="mt-4">
+        <span className={trend > 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}>
+          {trend > 0 ? '+' : ''}{trend}%
+        </span>
+        <span className="text-gray-600 dark:text-gray-400 ml-2">from last month</span>
       </div>
     </div>
   );
-};
+}
 
-export default UsersPage; 
+function QuickActionCard({ title, count, path, description }) {
+  return (
+    <motion.div
+      whileHover={{ scale: 1.02 }}
+      className="bg-white dark:bg-gray-800 rounded-lg shadow p-6 cursor-pointer"
+    >
+      <h3 className="font-semibold text-black dark:text-white">{title}</h3>
+      <div className="mt-2 text-3xl font-bold text-black dark:text-white">{count}</div>
+      <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">{description}</p>
+    </motion.div>
+  );
+} 

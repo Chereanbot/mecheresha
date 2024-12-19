@@ -118,6 +118,8 @@ export const showToast = (message: string, type: ToastType, options?: ToastOptio
   return ToastManager.getInstance().show(message, type, options);
 };
 
-export const hideToast = (id: number) => {
-  ToastManager.getInstance().hide(id);
+export const hideToast = (id: number | string, type?: string) => {
+  // Convert string id to number if needed
+  const numericId = typeof id === 'string' ? parseInt(id) : id;
+  ToastManager.getInstance().hide(numericId);
 }; 

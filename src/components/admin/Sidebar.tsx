@@ -22,6 +22,14 @@ import {
   HiOutlineClipboardList,
   HiOutlineDocumentDuplicate,
   HiOutlineLockClosed,
+  HiOutlineExclamation,
+  HiOutlineClock,
+  HiOutlineChartBar,
+  HiOutlineBriefcase,
+  HiOutlineLightBulb,
+  HiOutlineStar,
+  HiOutlineCollection,
+  HiOutlineDocument,
 } from 'react-icons/hi';
 import { useAdmin } from '@/contexts/AdminContext';
 
@@ -33,6 +41,7 @@ interface MenuItem {
     title: string;
     path: string;
     icon: React.ComponentType<{ className?: string }>;
+    description: string;
   }[];
 }
 
@@ -47,44 +56,94 @@ const menuItems: MenuItem[] = [
     icon: HiOutlineUserGroup,
     submenu: [
       { 
-        title: 'All Users', 
+        title: 'Users', 
         path: '/admin/users',
-        icon: HiOutlineUsers
-      },
-      { 
-        title: 'Roles & Permissions', 
-        path: '/admin/users/roles',
-        icon: HiOutlineKey
-      },
-      { 
-        title: 'Access Control', 
-        path: '/admin/users/access',
-        icon: HiOutlineShieldCheck
-      },
-      { 
-        title: 'User Registration', 
-        path: '/admin/users/register',
-        icon: HiOutlineUserAdd
+        icon: HiOutlineUsers,
+        description: 'Manage all system users'
       },
       { 
         title: 'Verification', 
         path: '/admin/users/verification',
-        icon: HiOutlineBadgeCheck
+        icon: HiOutlineBadgeCheck,
+        description: 'Email and phone verification requests'
       },
       { 
-        title: 'Activity Logs', 
-        path: '/admin/users/logs',
-        icon: HiOutlineClipboardList
+        title: 'Access Control', 
+        path: '/admin/users/access',
+        icon: HiOutlineShieldCheck,
+        description: 'Manage user access and permissions'
       },
       { 
-        title: 'User Documents', 
+        title: 'Documents', 
         path: '/admin/users/documents',
-        icon: HiOutlineDocumentDuplicate
+        icon: HiOutlineDocumentDuplicate,
+        description: 'User uploaded documents and files'
       },
       { 
-        title: 'Security Settings', 
+        title: 'Security', 
         path: '/admin/users/security',
-        icon: HiOutlineLockClosed
+        icon: HiOutlineLockClosed,
+        description: 'Security settings and policies'
+      }
+    ]
+  },
+  {
+    title: 'Lawyer Management',
+    icon: HiOutlineScale,
+    submenu: [
+      { 
+        title: 'All Lawyers', 
+        path: '/admin/lawyers',
+        icon: HiOutlineBriefcase,
+        description: 'View and manage all lawyers'
+      },
+      { 
+        title: 'Faculty Workload', 
+        path: '/admin/lawyers/workload',
+        icon: HiOutlineChartBar,
+        description: 'Monitor teaching staff case distribution and academic workload'
+      },
+      { 
+        title: 'Case Assignments', 
+        path: '/admin/lawyers/assignments',
+        icon: HiOutlineDocumentDuplicate,
+        description: 'Manage case assignments from coordinators'
+      },
+      { 
+        title: 'Office Assignments', 
+        path: '/admin/lawyers/office-assignments',
+        icon: HiOutlineOfficeBuilding,
+        description: 'Assign lawyers to specific offices'
+      },
+      { 
+        title: 'Performance', 
+        path: '/admin/lawyers/performance',
+        icon: HiOutlineChartBar,
+        description: 'Monitor lawyer case resolution rates'
+      },
+      { 
+        title: 'Client Payments', 
+        path: '/admin/lawyers/payments',
+        icon: HiOutlineCash,
+        description: 'Track lawyer purchase requests'
+      },
+      { 
+        title: 'Reports', 
+        path: '/admin/lawyers/reports',
+        icon: HiOutlineDocumentReport,
+        description: 'View lawyer performance reports'
+      },
+      {
+        title: 'Availability',
+        path: '/admin/lawyers/availability',
+        icon: HiOutlineClock,
+        description: 'Manage lawyer schedules and status'
+      },
+      {
+        title: 'Specializations',
+        path: '/admin/lawyers/specializations',
+        icon: HiOutlineBadgeCheck,
+        description: 'Manage lawyer expertise areas'
       }
     ]
   },
@@ -93,24 +152,46 @@ const menuItems: MenuItem[] = [
     icon: HiOutlineScale,
     submenu: [
       { 
+        title: 'Dashboard', 
+        path: '/admin/cases/dashboard',
+        icon: HiOutlineChartPie,
+        description: 'Case analytics and metrics'
+      },
+      { 
         title: 'Active Cases', 
         path: '/admin/cases/active',
-        icon: HiOutlineDocumentDuplicate
+        icon: HiOutlineDocumentDuplicate,
+        description: 'View and manage active cases'
       },
       { 
         title: 'Case Assignment', 
         path: '/admin/cases/assign',
-        icon: HiOutlineUserGroup
+        icon: HiOutlineUserGroup,
+        description: 'Assign cases to lawyers'
       },
       { 
         title: 'Priority Cases', 
         path: '/admin/cases/priority',
-        icon: HiOutlineScale
+        icon: HiOutlineExclamation,
+        description: 'High priority case management'
       },
       { 
         title: 'Appeals', 
         path: '/admin/cases/appeals',
-        icon: HiOutlineDocumentReport
+        icon: HiOutlineDocumentReport,
+        description: 'Manage case appeals'
+      },
+      {
+        title: 'Case Timeline',
+        path: '/admin/cases/timeline',
+        icon: HiOutlineClock,
+        description: 'View case progression'
+      },
+      {
+        title: 'Performance',
+        path: '/admin/cases/performance',
+        icon: HiOutlineChartBar,
+        description: 'Case resolution metrics'
       }
     ]
   },
@@ -121,17 +202,20 @@ const menuItems: MenuItem[] = [
       { 
         title: 'Resources', 
         path: '/admin/office/resources',
-        icon: HiOutlineCog
+        icon: HiOutlineCog,
+        description: 'Manage office resources'
       },
       { 
         title: 'Performance', 
         path: '/admin/office/performance',
-        icon: HiOutlineChartPie
+        icon: HiOutlineChartPie,
+        description: 'Office performance metrics'
       },
       { 
         title: 'Planning', 
         path: '/admin/office/planning',
-        icon: HiOutlineDocumentReport
+        icon: HiOutlineDocumentReport,
+        description: 'Office planning and scheduling'
       }
     ]
   },
@@ -139,30 +223,176 @@ const menuItems: MenuItem[] = [
     title: 'Client Services',
     icon: HiOutlineCash,
     submenu: [
-      { title: 'Service Requests', path: '/admin/services/requests' },
-      { title: 'Packages', path: '/admin/services/packages' },
-      { title: 'Fee Structure', path: '/admin/services/fees' }
+      { title: 'Service Requests', path: '/admin/services/requests', icon: HiOutlineClipboardList, description: 'Manage service requests' },
+      { title: 'Packages', path: '/admin/services/packages', icon: HiOutlineClipboardList, description: 'Manage service packages' },
+      { title: 'Fee Structure', path: '/admin/services/fees', icon: HiOutlineClipboardList, description: 'Manage service fees' }
     ]
   },
   {
     title: 'Coordinator Management',
     icon: HiOutlineUsers,
     submenu: [
-      { title: 'Project Based', path: '/admin/coordinators/project' },
-      { title: 'Permanent', path: '/admin/coordinators/permanent' },
-      { title: 'Assignments', path: '/admin/coordinators/assignments' }
+      { 
+        title: 'All Coordinators', 
+        path: '/admin/coordinators', 
+        icon: HiOutlineUserGroup,
+        description: 'View and manage all coordinators' 
+      },
+      { 
+        title: 'Add Coordinator', 
+        path: '/admin/coordinators/new', 
+        icon: HiOutlineUserAdd,
+        description: 'Add new coordinator' 
+      },
+      { 
+        title: 'Assignments', 
+        path: '/admin/coordinators/assignments', 
+        icon: HiOutlineClipboardList,
+        description: 'Manage coordinator assignments' 
+      },
+      { 
+        title: 'Performance', 
+        path: '/admin/coordinators/performance', 
+        icon: HiOutlineChartBar,
+        description: 'View coordinator performance metrics' 
+      }
     ]
   },
   {
     title: 'Reports',
     icon: HiOutlineDocumentReport,
     submenu: [
-      { title: 'Statistics', path: '/admin/reports/statistics' },
-      { title: 'Performance', path: '/admin/reports/performance' },
-      { title: 'Financial', path: '/admin/reports/financial' }
+      { title: 'Statistics', path: '/admin/reports/statistics', icon: HiOutlineClipboardList, description: 'View statistics reports' },
+      { title: 'Performance', path: '/admin/reports/performance', icon: HiOutlineClipboardList, description: 'View performance reports' },
+      { title: 'Financial', path: '/admin/reports/financial', icon: HiOutlineClipboardList, description: 'View financial reports' }
     ]
   }
 ];
+
+// Add interfaces for the new functionality
+interface VerificationRequest {
+  id: string;
+  userId: string;
+  type: 'EMAIL' | 'PHONE';
+  status: 'PENDING' | 'VERIFIED' | 'REJECTED';
+  createdAt: string;
+  user: {
+    fullName: string;
+    email: string;
+    phone?: string;
+  };
+}
+
+interface AccessRequest {
+  id: string;
+  userId: string;
+  resourceType: string;
+  resourceId: string;
+  status: 'PENDING' | 'APPROVED' | 'REJECTED';
+  requestedAt: string;
+  user: {
+    fullName: string;
+    role: string;
+  };
+}
+
+interface UserDocument {
+  id: string;
+  userId: string;
+  title: string;
+  type: string;
+  status: 'PENDING' | 'APPROVED' | 'REJECTED';
+  uploadedAt: string;
+  size: number;
+  mimeType: string;
+}
+
+interface SecuritySetting {
+  id: string;
+  userId: string;
+  twoFactorEnabled: boolean;
+  lastPasswordChange: string;
+  loginAttempts: number;
+  lastLoginAt: string;
+  securityQuestions: boolean;
+}
+
+// Add these to your userService:
+class UserService {
+  // ... existing methods ...
+
+  // Verification Methods
+  async getVerificationRequests(): Promise<VerificationRequest[]> {
+    const response = await fetch('/api/users/verification');
+    const data = await response.json();
+    return data.requests;
+  }
+
+  async approveVerification(requestId: string): Promise<void> {
+    await fetch(`/api/users/verification/${requestId}/approve`, {
+      method: 'POST'
+    });
+  }
+
+  async rejectVerification(requestId: string): Promise<void> {
+    await fetch(`/api/users/verification/${requestId}/reject`, {
+      method: 'POST'
+    });
+  }
+
+  // Access Control Methods
+  async getAccessRequests(): Promise<AccessRequest[]> {
+    const response = await fetch('/api/users/access');
+    const data = await response.json();
+    return data.requests;
+  }
+
+  async updateAccess(userId: string, permissions: string[]): Promise<void> {
+    await fetch(`/api/users/${userId}/access`, {
+      method: 'PATCH',
+      body: JSON.stringify({ permissions })
+    });
+  }
+
+  // Document Management Methods
+  async getUserDocuments(userId: string): Promise<UserDocument[]> {
+    const response = await fetch(`/api/users/${userId}/documents`);
+    const data = await response.json();
+    return data.documents;
+  }
+
+  async approveDocument(documentId: string): Promise<void> {
+    await fetch(`/api/users/documents/${documentId}/approve`, {
+      method: 'POST'
+    });
+  }
+
+  // Security Methods
+  async getUserSecurity(userId: string): Promise<SecuritySetting> {
+    const response = await fetch(`/api/users/${userId}/security`);
+    const data = await response.json();
+    return data.security;
+  }
+
+  async updateSecuritySettings(userId: string, settings: Partial<SecuritySetting>): Promise<void> {
+    await fetch(`/api/users/${userId}/security`, {
+      method: 'PATCH',
+      body: JSON.stringify(settings)
+    });
+  }
+}
+
+// Create corresponding API routes for each new endpoint
+// src/app/api/users/verification/route.ts
+// src/app/api/users/access/route.ts
+// src/app/api/users/documents/route.ts
+// src/app/api/users/security/route.ts
+
+// Create new components for each section:
+// src/components/admin/users/verification/VerificationTable.tsx
+// src/components/admin/users/access/AccessControl.tsx
+// src/components/admin/users/documents/DocumentManager.tsx
+// src/components/admin/users/security/SecuritySettings.tsx
 
 const Sidebar = () => {
   const pathname = usePathname();
@@ -214,7 +444,7 @@ const Sidebar = () => {
           <Link href="/admin/dashboard" className="flex items-center space-x-2">
             <img 
               src="/images/logo.svg" 
-              alt="Dula CMS" 
+              alt="DU LADS" 
               className="w-8 h-8"
               onError={(e) => {
                 const target = e.target as HTMLImageElement;
@@ -224,7 +454,7 @@ const Sidebar = () => {
             />
             {!isCollapsed && (
               <span className="text-xl font-bold text-gray-800 dark:text-white">
-                Dula CMS
+                DU LADS
               </span>
             )}
           </Link>

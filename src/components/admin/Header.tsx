@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTheme } from 'next-themes';
-import { useAdmin } from '@/contexts/AdminContext';
+import { useNotifications } from '@/contexts/NotificationContext';
 import {
   HiOutlineBell,
   HiOutlineSearch,
@@ -13,22 +13,62 @@ import {
   HiOutlineCog,
   HiOutlineLogout,
   HiOutlineMenuAlt2,
-  HiX
+  HiX,
+  HiCheck,
+  HiOutlineTrash
 } from 'react-icons/hi';
 import Avatar from '@/components/common/Avatar';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { useAuth } from '@/hooks/useAuth';
+import NotificationDropdown from '@/components/notifications/NotificationDropdown';
+
+// Helper function for date formatting
+const formatRelativeTime = (date: Date) => {
+  const now = new Date();
+  const diff = now.getTime() - date.getTime();
+  
+  const minutes = Math.floor(diff / 60000);
+  const hours = Math.floor(minutes / 60);
+  const days = Math.floor(hours / 24);
+
+  if (minutes < 60) {
+    return `${minutes} minutes ago`;
+  } else if (hours < 24) {
+    return `${hours} hours ago`;
+  } else {
+    return `${days} days ago`;
+  }
+};
 
 const Header = () => {
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
   const [showMobileMenu, setShowMobileMenu] = useState(false);
   const { theme, setTheme } = useTheme();
-  const { adminUser, notifications, markNotificationAsRead, logout } = useAdmin();
-  
-  const unreadNotifications = notifications?.filter(n => !n.read) || [];
+  const { user, logout } = useAuth();
+  const router = useRouter();
+  const { 
+    notifications, 
+    unreadCount, 
+    markAsRead, 
+    markAllAsRead,
+    deleteNotification 
+  } = useNotifications();
 
-  const handleLogout = () => {
-    logout();
+  const handleLogout = async () => {
+    await logout();
     setShowProfileMenu(false);
+    router.push('/login');
+  };
+
+  const handleNotificationClick = async (notification: any) => {
+    if (!notification.read) {
+      await markAsRead(notification.id);
+    }
+    if (notification.link) {
+      router.push(notification.link);
+    }
   };
 
   return (
@@ -76,59 +116,7 @@ const Header = () => {
           </button>
 
           {/* Notifications */}
-          <div className="relative">
-            <button
-              onClick={() => setShowNotifications(!showNotifications)}
-              className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 relative"
-              aria-label="Notifications"
-            >
-              <HiOutlineBell className="w-6 h-6" />
-              {unreadNotifications.length > 0 && (
-                <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full" />
-              )}
-            </button>
-
-            <AnimatePresence>
-              {showNotifications && (
-                <motion.div
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: 10 }}
-                  className="absolute right-0 mt-2 w-80 bg-white dark:bg-gray-800 rounded-lg 
-                    shadow-lg border border-gray-200 dark:border-gray-700"
-                >
-                  <div className="p-4 border-b border-gray-200 dark:border-gray-700">
-                    <h3 className="font-semibold">Notifications</h3>
-                  </div>
-                  <div className="max-h-96 overflow-y-auto">
-                    {notifications && notifications.length > 0 ? (
-                      notifications.map((notification) => (
-                        <div
-                          key={notification.id}
-                          onClick={() => markNotificationAsRead(notification.id)}
-                          className={`p-4 border-b border-gray-200 dark:border-gray-700 last:border-0
-                            cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700
-                            ${!notification.read ? 'bg-primary-50 dark:bg-primary-900/20' : ''}`}
-                        >
-                          <h4 className="font-medium">{notification.title}</h4>
-                          <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                            {notification.message}
-                          </p>
-                          <span className="text-xs text-gray-500 dark:text-gray-500 mt-2 block">
-                            {notification.time}
-                          </span>
-                        </div>
-                      ))
-                    ) : (
-                      <div className="p-4 text-center text-gray-500">
-                        No notifications
-                      </div>
-                    )}
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </div>
+          <NotificationDropdown />
 
           {/* Profile */}
           <div className="relative">
@@ -138,12 +126,12 @@ const Header = () => {
                 hover:bg-gray-100 dark:hover:bg-gray-700"
             >
               <Avatar 
-                name={adminUser?.name || 'Admin'} 
-                src={adminUser?.avatar}
+                name={user?.name || 'Admin'} 
+                src={user?.avatar}
                 size="sm"
               />
               <span className="font-medium hidden md:block">
-                {adminUser?.name || 'Administrator'}
+                {user?.name || 'Administrator'}
               </span>
             </button>
 
@@ -153,36 +141,28 @@ const Header = () => {
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: 10 }}
-                  className="absolute right-0 mt-2 w-48 bg-white dark:bg-gray-800 rounded-lg 
-                    shadow-lg border border-gray-200 dark:border-gray-700"
+                  className="absolute right-0 mt-2 w-48 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700"
                 >
                   <div className="p-2">
-                    <button
-                      onClick={() => {
-                        setShowProfileMenu(false);
-                        // Navigate to profile
-                      }}
-                      className="w-full flex items-center space-x-3 p-3 rounded-lg
-                        hover:bg-gray-100 dark:hover:bg-gray-700"
+                    <Link
+                      href="/admin/profile"
+                      className="w-full flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700"
+                      onClick={() => setShowProfileMenu(false)}
                     >
                       <HiOutlineUser className="w-5 h-5" />
                       <span>Profile</span>
-                    </button>
-                    <button
-                      onClick={() => {
-                        setShowProfileMenu(false);
-                        // Navigate to settings
-                      }}
-                      className="w-full flex items-center space-x-3 p-3 rounded-lg
-                        hover:bg-gray-100 dark:hover:bg-gray-700"
+                    </Link>
+                    <Link
+                      href="/admin/settings"
+                      className="w-full flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700"
+                      onClick={() => setShowProfileMenu(false)}
                     >
                       <HiOutlineCog className="w-5 h-5" />
                       <span>Settings</span>
-                    </button>
+                    </Link>
                     <button
                       onClick={handleLogout}
-                      className="w-full flex items-center space-x-3 p-3 rounded-lg
-                        hover:bg-red-50 text-red-600 dark:hover:bg-red-900/20"
+                      className="w-full flex items-center space-x-3 p-3 rounded-lg hover:bg-red-50 text-red-600 dark:hover:bg-red-900/20"
                     >
                       <HiOutlineLogout className="w-5 h-5" />
                       <span>Logout</span>
