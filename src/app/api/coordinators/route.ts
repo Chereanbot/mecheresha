@@ -1,6 +1,9 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { CoordinatorStatus, CoordinatorType } from '@prisma/client';
+import { verifyAuth } from '@/lib/auth';
+import bcrypt from 'bcryptjs';
+import { signJWT } from '@/lib/jwt';
 
 export async function GET(request: Request) {
   try {
@@ -108,68 +111,127 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    const body = await request.json();
+    // Verify admin authorization
+    const authResult = await verifyAuth(request);
+    if (!authResult.isAuthenticated || !authResult.user?.isAdmin) {
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 403 }
+      );
+    }
 
-    // Create coordinator with associated user
-    const coordinator = await prisma.coordinator.create({
-      data: {
-        type: body.type,
-        officeId: body.officeId,
-        startDate: new Date(body.startDate),
-        endDate: body.endDate ? new Date(body.endDate) : null,
-        specialties: body.specialties || [],
-        status: CoordinatorStatus.PENDING,
-        user: {
-          create: {
-            email: body.email,
-            phone: body.phone,
-            password: body.password, // Should be hashed before saving
-            fullName: body.fullName,
-            role: 'COORDINATOR',
-            emailVerified: false,
-            phoneVerified: false
-          }
+    const body = await request.json();
+    
+    // Validate required fields
+    if (!body || !body.email || !body.password || !body.fullName || !body.officeId) {
+      return NextResponse.json(
+        { 
+          success: false,
+          message: 'Missing required fields' 
         },
-        qualifications: {
-          create: body.qualifications?.map((q: any) => ({
-            type: q.type,
-            title: q.title,
-            institution: q.institution,
-            dateObtained: new Date(q.dateObtained),
-            expiryDate: q.expiryDate ? new Date(q.expiryDate) : null,
-            score: q.score
-          }))
-        }
-      },
-      include: {
-        user: {
-          select: {
-            id: true,
-            email: true,
-            fullName: true,
-            phone: true,
-            role: true,
-            status: true
-          }
-        },
-        office: true,
-        qualifications: true
-      }
+        { status: 400 }
+      );
+    }
+
+    const { 
+      email, 
+      password, 
+      fullName, 
+      officeId,
+      phone,
+      address,
+      status = 'ACTIVE'
+    } = body;
+
+    // Check if email already exists
+    const existingUser = await prisma.user.findUnique({
+      where: { email }
     });
+
+    if (existingUser) {
+      return NextResponse.json(
+        { 
+          success: false,
+          message: 'Email already exists' 
+        },
+        { status: 400 }
+      );
+    }
+
+    // Hash password
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    // Create user and coordinator in a transaction
+    const result = await prisma.$transaction(async (prisma) => {
+      // Create user
+      const user = await prisma.user.create({
+        data: {
+          email,
+          password: hashedPassword,
+          fullName,
+          userRole: 'COORDINATOR',
+          status,
+          phone,
+          address
+        }
+      });
+
+      // Create coordinator profile
+      const coordinator = await prisma.coordinator.create({
+        data: {
+          userId: user.id,
+          officeId,
+          status
+        },
+        include: {
+          user: {
+            select: {
+              id: true,
+              email: true,
+              fullName: true,
+              userRole: true,
+              status: true
+            }
+          },
+          office: {
+            select: {
+              id: true,
+              name: true,
+              location: true
+            }
+          }
+        }
+      });
+
+      return coordinator;
+    });
+
+    // Generate JWT token
+    const tokenPayload = {
+      userId: result.user.id,
+      email: result.user.email,
+      role: result.user.userRole,
+      coordinatorId: result.id,
+      officeId: result.officeId
+    };
+
+    const token = await signJWT(tokenPayload);
 
     return NextResponse.json({
       success: true,
-      data: coordinator,
-      message: 'Coordinator created successfully'
+      message: 'Coordinator created successfully',
+      data: {
+        coordinator: result,
+        token
+      }
     });
 
   } catch (error) {
     console.error('Error creating coordinator:', error);
     return NextResponse.json(
-      { 
-        success: false, 
-        error: 'Failed to create coordinator',
-        details: process.env.NODE_ENV === 'development' ? error : undefined
+      {
+        success: false,
+        message: error instanceof Error ? error.message : 'Failed to create coordinator'
       },
       { status: 500 }
     );

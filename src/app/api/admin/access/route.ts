@@ -1,34 +1,29 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
+import { verifyAuth } from '@/lib/auth';
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user) {
+    // Get the token from the authorization header
+    const token = request.headers.get('authorization')?.split(' ')[1];
+    
+    if (!token) {
       return NextResponse.json(
-        { error: 'Unauthorized' },
+        { error: 'No token provided' },
         { status: 401 }
       );
     }
 
-    // Check if user has admin access
-    const user = await prisma.user.findUnique({
-      where: { email: session.user.email },
-      include: {
-        role: true
-      }
-    });
-
-    if (!user?.isAdmin) {
+    // Verify the token and check if user is admin
+    const authResult = await verifyAuth(request);
+    if (!authResult.isAuthenticated || authResult.user?.role !== 'ADMIN') {
       return NextResponse.json(
-        { error: 'Forbidden' },
+        { error: 'Unauthorized access' },
         { status: 403 }
       );
     }
 
-    // Get all roles with their permissions
+    // Fetch roles with their permissions
     const roles = await prisma.role.findMany({
       include: {
         permissions: {
@@ -47,7 +42,7 @@ export async function GET() {
       }
     });
 
-    // Get all permissions
+    // Fetch all permissions
     const permissions = await prisma.permission.findMany();
 
     // Group permissions by module
@@ -61,13 +56,12 @@ export async function GET() {
 
     return NextResponse.json({
       roles,
-      permissions: permissionsByModule,
-      userRole: user.role
+      permissions: permissionsByModule
     });
   } catch (error) {
     console.error('Error fetching access control data:', error);
     return NextResponse.json(
-      { error: 'Failed to fetch access control data', details: error instanceof Error ? error.message : 'Unknown error' },
+      { error: 'Internal server error' },
       { status: 500 }
     );
   }

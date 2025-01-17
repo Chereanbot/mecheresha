@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth';
 
 // Define enums locally since we're having issues importing from Prisma
 enum ServiceStatus {
@@ -20,8 +21,8 @@ enum ServiceType {
 
 export async function GET() {
   try {
-    // Check authentication
-    const session = await getServerSession();
+    // Check authentication with auth options
+    const session = await getServerSession(authOptions);
     if (!session) {
       return NextResponse.json(
         { error: 'Unauthorized' },

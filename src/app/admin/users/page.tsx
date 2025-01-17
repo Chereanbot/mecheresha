@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { useAdmin } from '@/contexts/AdminContext';
 import { userService } from '@/services/user.service';
 import { motion } from 'framer-motion';
 import {
@@ -23,6 +25,9 @@ import UserTable from '@/components/admin/users/UserTable';
 import EditUserModal from '@/components/admin/users/EditUserModal';
 import { toast } from 'react-hot-toast';
 import AddUserModal from '@/components/admin/users/AddUserModal';
+import { User } from '@/types/case.types';
+import { UserStatus } from '@prisma/client';
+import { Role } from '@/services/role.service';
 
 interface UserStats {
   total: number;
@@ -58,6 +63,8 @@ function TabButton({
 }
 
 export default function AdminUsersPage() {
+  const router = useRouter();
+  const { user, loading: authLoading } = useAdmin();
   const [users, setUsers] = useState([]);
   const [selectedRole, setSelectedRole] = useState('all');
   const [stats, setStats] = useState<UserStats>({
@@ -68,42 +75,59 @@ export default function AdminUsersPage() {
     newToday: 0
   });
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const [error, setError] = useState<string | null>(null);
   const [showEditModal, setShowEditModal] = useState(false);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [showAddModal, setShowAddModal] = useState(false);
 
-  useEffect(() => {
-    loadUserData();
-  }, []);
-
-  const loadUserData = async (role = 'all') => {
+  const loadData = async () => {
     try {
       setLoading(true);
-      console.log('Loading users for role:', role); // Debug log
+      setError(null);
 
-      const [usersResponse, statsResponse] = await Promise.all([
-        userService.getAllUsers({ role }),
-        userService.getUserStats()
-      ]);
-      
-      console.log('Users response:', usersResponse); // Debug log
-      
+      // Load users
+      const usersResponse = await userService.getAllUsers();
       setUsers(usersResponse.data);
-      setStats({
-        total: statsResponse.overview.total,
-        active: statsResponse.overview.active,
-        pending: statsResponse.overview.pending,
-        blocked: statsResponse.overview.blocked,
-        newToday: statsResponse.overview.newToday
-      });
-    } catch (err) {
+
+      // Load stats separately
+      try {
+        const statsResponse = await userService.getUserStats();
+        if (statsResponse.overview) {
+          setStats(statsResponse.overview);
+        }
+      } catch (statsError) {
+        console.error('Failed to load stats:', statsError);
+        // Set default stats
+        setStats({
+          total: usersResponse.total || 0,
+          active: 0,
+          pending: 0,
+          blocked: 0,
+          newToday: 0
+        });
+      }
+
+    } catch (err: any) {
       console.error('Failed to load user data:', err);
-      setError('Failed to load user data');
+      setError(err.message || 'Failed to load users');
+      
+      if (err.message === 'Unauthorized access') {
+        router.push('/login?redirect=/admin/users');
+      }
     } finally {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (!authLoading) {
+      if (!user) {
+        router.push('/login?redirect=/admin/users');
+      } else {
+        loadData();
+      }
+    }
+  }, [user, authLoading, router]);
 
   const handleEditUser = (user: User) => {
     setSelectedUser(user);
@@ -175,9 +199,9 @@ export default function AdminUsersPage() {
     }
   };
 
-  if (loading) {
+  if (loading || authLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="flex items-center justify-center min-h-screen">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-500"></div>
       </div>
     );
@@ -185,17 +209,8 @@ export default function AdminUsersPage() {
 
   if (error) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center p-6 bg-white rounded-lg shadow-lg">
-          <div className="text-red-500 text-xl mb-4">⚠️ Error</div>
-          <p className="text-gray-600 mb-4">{error}</p>
-          <button
-            onClick={loadUserData}
-            className="px-4 py-2 bg-primary-500 text-white rounded-lg hover:bg-primary-600"
-          >
-            Try Again
-          </button>
-        </div>
+      <div className="p-6 text-center">
+        <p className="text-red-500">{error}</p>
       </div>
     );
   }
@@ -403,7 +418,7 @@ function StatsCard({ title, value, icon: Icon, trend, type = 'default' }: { titl
           <p className="text-sm text-gray-600 dark:text-gray-400">{title}</p>
           <h3 className="text-2xl font-bold text-black dark:text-white mt-1">{value}</h3>
         </div>
-        <div className={`p-3 rounded-full ${colors[type]}`}>
+        <div className={`p-3 rounded-full ${colors[type as keyof typeof colors]}`}>
           <Icon className="w-6 h-6" />
         </div>
       </div>
@@ -417,7 +432,7 @@ function StatsCard({ title, value, icon: Icon, trend, type = 'default' }: { titl
   );
 }
 
-function QuickActionCard({ title, count, path, description }) {
+function QuickActionCard({ title, count, path, description }: { title: string, count: number, path: string, description: string }) {
   return (
     <motion.div
       whileHover={{ scale: 1.02 }}

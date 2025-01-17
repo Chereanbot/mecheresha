@@ -15,7 +15,11 @@ import {
   HiOutlineMenuAlt2,
   HiX,
   HiCheck,
-  HiOutlineTrash
+  HiOutlineTrash,
+  HiOutlineChatAlt2,
+  HiOutlineInbox,
+  HiOutlinePaperAirplane,
+  HiOutlineArchive
 } from 'react-icons/hi';
 import Avatar from '@/components/common/Avatar';
 import Link from 'next/link';
@@ -45,6 +49,7 @@ const Header = () => {
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
   const [showMobileMenu, setShowMobileMenu] = useState(false);
+  const [showMessagesMenu, setShowMessagesMenu] = useState(false);
   const { theme, setTheme } = useTheme();
   const { user, logout } = useAuth();
   const router = useRouter();
@@ -115,6 +120,63 @@ const Header = () => {
             )}
           </button>
 
+          {/* Messages */}
+          <div className="relative">
+            <button
+              onClick={() => setShowMessagesMenu(!showMessagesMenu)}
+              className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700"
+              aria-label="Messages"
+            >
+              <HiOutlineChatAlt2 className="w-6 h-6" />
+              <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
+                3
+              </span>
+            </button>
+
+            <AnimatePresence>
+              {showMessagesMenu && (
+                <motion.div
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: 10 }}
+                  className="absolute right-0 mt-2 w-80 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700"
+                >
+                  <div className="p-4">
+                    <div className="flex justify-between items-center mb-4">
+                      <h3 className="font-semibold">Messages</h3>
+                      <Link href="/admin/messages" className="text-sm text-primary-500 hover:text-primary-600">
+                        View All
+                      </Link>
+                    </div>
+                    <div className="space-y-4">
+                      <Link href="/admin/messages/lawyer" className="flex items-center space-x-3 p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700">
+                        <HiOutlineInbox className="w-5 h-5 text-blue-500" />
+                        <div>
+                          <p className="font-medium">Lawyer Messages</p>
+                          <p className="text-sm text-gray-500">View received messages</p>
+                        </div>
+                      </Link>
+                      <Link href="/admin/messages/client" className="flex items-center space-x-3 p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700">
+                        <HiOutlinePaperAirplane className="w-5 h-5 text-green-500" />
+                        <div>
+                          <p className="font-medium">Client Messages</p>
+                          <p className="text-sm text-gray-500">View sent messages</p>
+                        </div>
+                      </Link>
+                      <Link href="/admin/messages/coordinator" className="flex items-center space-x-3 p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700">
+                        <HiOutlineArchive className="w-5 h-5 text-purple-500" />
+                        <div>
+                          <p className="font-medium">Coordinator Messages</p>
+                          <p className="text-sm text-gray-500">View archived messages</p>
+                        </div>
+                      </Link>
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+
           {/* Notifications */}
           <NotificationDropdown />
 
@@ -178,4 +240,4 @@ const Header = () => {
   );
 };
 
-export default Header; 
+export default Header;

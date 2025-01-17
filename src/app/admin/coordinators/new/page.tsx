@@ -215,47 +215,27 @@ const AddCoordinatorPage = () => {
     return true;
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError(null);
-
-    if (!validateForm()) {
-      return;
-    }
-
-    setLoading(true);
-
+  const handleSubmit = async (data: FormData) => {
     try {
-      // First validate the form data
-      const validation = await service.validateCoordinator(formData);
-      if (!validation.valid) {
-        setError(Object.values(validation.errors || {}).join(', '));
-        return;
-      }
+      setLoading(true);
+      
+      const coordinatorData = {
+        email: data.email,
+        password: data.password,
+        fullName: data.fullName,
+        officeId: data.officeId,
+        phone: data.phone,
+        address: data.address,
+        status: 'ACTIVE'
+      };
 
-      // Create the coordinator
-      const response = await service.createCoordinator({
-        ...formData,
-        status: CoordinatorStatus.PENDING, // Set initial status
-        specialties: formData.specialties.filter(Boolean), // Remove empty values
-        qualifications: formData.qualifications.filter(q => q.type && q.title), // Only include complete qualifications
-      });
+      const result = await service.createCoordinator(coordinatorData);
 
-      if (response.success) {
-        // Show success message
-        toast.success('Coordinator created successfully');
-        // Redirect to coordinators list
+      if (result.success) {
         router.push('/admin/coordinators');
-      } else {
-        setError(response.message || 'Failed to create coordinator');
       }
     } catch (error) {
-      console.error('Coordinator creation error:', error);
-      setError(
-        error instanceof Error 
-          ? error.message 
-          : 'An unexpected error occurred while creating the coordinator'
-      );
+      console.error('Form submission error:', error);
     } finally {
       setLoading(false);
     }

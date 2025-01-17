@@ -1,12 +1,18 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { verifyAuth } from '@/lib/auth';
-import { UserStatus } from '@prisma/client';
+import { UserRoleEnum, UserStatus } from '@prisma/client';
+import { headers } from 'next/headers';
 
 export async function GET(request: Request) {
   try {
+    // Get token from Authorization header
+    const headersList = await headers();
+    const authHeader = headersList.get('authorization');
+    const token = authHeader?.split(' ')[1];
+
     // Verify authentication
-    const authResult = await verifyAuth(request);
+    const authResult = await verifyAuth(token || '');
     if (!authResult.isAuthenticated) {
       return NextResponse.json(
         { error: 'Unauthorized access. Please log in again.' }, 
@@ -15,7 +21,7 @@ export async function GET(request: Request) {
     }
 
     // Verify admin role
-    if (authResult.user?.role !== 'ADMIN' && authResult.user?.role !== 'SUPER_ADMIN') {
+    if (authResult.user?.userRole !== UserRoleEnum.ADMIN && authResult.user?.userRole !== UserRoleEnum.SUPER_ADMIN) {
       return NextResponse.json(
         { error: 'Insufficient permissions' },
         { status: 403 }

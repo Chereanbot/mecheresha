@@ -1,11 +1,43 @@
+import { getAuthHeaders } from '@/utils/auth';
+
 class CoordinatorService {
-  async getCoordinators() {
-    const response = await fetch('/api/coordinators');
-    if (!response.ok) {
-      throw new Error('Failed to fetch coordinators');
+  async getAllCoordinators() {
+    try {
+      const response = await fetch('/api/coordinators', {
+        headers: getAuthHeaders(),
+        credentials: 'include'
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to fetch coordinators');
+      }
+
+      const data = await response.json();
+      return { data: data.coordinators || [], total: data.total };
+    } catch (error) {
+      console.error('Error fetching coordinators:', error);
+      return { data: [], total: 0 };
     }
-    const data = await response.json();
-    return data.coordinators;
+  }
+
+  async getCoordinatorById(id: string) {
+    try {
+      const response = await fetch(`/api/coordinators/${id}`, {
+        headers: getAuthHeaders(),
+        credentials: 'include'
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to fetch coordinator');
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('Error fetching coordinator:', error);
+      throw error;
+    }
   }
 
   async createCoordinator(coordinatorData: any) {

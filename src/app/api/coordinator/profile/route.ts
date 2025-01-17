@@ -1,12 +1,13 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { getServerSession } from 'next-auth';
+import { headers } from 'next/headers';
 
 export async function GET() {
   try {
-    const session = await getServerSession();
+    const headersList = headers();
+    const userId = headersList.get('x-user-id');
     
-    if (!session?.user?.email) {
+    if (!userId) {
       return NextResponse.json(
         { success: false, error: 'Not authenticated' },
         { status: 401 }
@@ -15,9 +16,7 @@ export async function GET() {
 
     const coordinator = await prisma.coordinator.findFirst({
       where: {
-        user: {
-          email: session.user.email
-        }
+        userId: userId
       },
       include: {
         user: {
@@ -25,11 +24,36 @@ export async function GET() {
             fullName: true,
             email: true,
             phone: true,
-            avatar: true
+            userRole: true
           }
         },
-        office: true,
-        qualifications: true
+        office: {
+          select: {
+            id: true,
+            name: true,
+            location: true,
+            type: true,
+            status: true,
+            contactEmail: true,
+            contactPhone: true,
+            address: true,
+            capacity: true
+          }
+        },
+        qualifications: {
+          include: {
+            documents: {
+              include: {
+                document: true
+              }
+            }
+          }
+        },
+        documents: {
+          include: {
+            document: true
+          }
+        }
       }
     });
 
@@ -56,9 +80,10 @@ export async function GET() {
 
 export async function PATCH(request: Request) {
   try {
-    const session = await getServerSession();
+    const headersList = headers();
+    const userId = headersList.get('x-user-id');
     
-    if (!session?.user?.email) {
+    if (!userId) {
       return NextResponse.json(
         { success: false, error: 'Not authenticated' },
         { status: 401 }
@@ -69,9 +94,7 @@ export async function PATCH(request: Request) {
 
     const coordinator = await prisma.coordinator.findFirst({
       where: {
-        user: {
-          email: session.user.email
-        }
+        userId: userId
       },
       include: {
         user: true
@@ -106,11 +129,36 @@ export async function PATCH(request: Request) {
             fullName: true,
             email: true,
             phone: true,
-            avatar: true
+            userRole: true
           }
         },
-        office: true,
-        qualifications: true
+        office: {
+          select: {
+            id: true,
+            name: true,
+            location: true,
+            type: true,
+            status: true,
+            contactEmail: true,
+            contactPhone: true,
+            address: true,
+            capacity: true
+          }
+        },
+        qualifications: {
+          include: {
+            documents: {
+              include: {
+                document: true
+              }
+            }
+          }
+        },
+        documents: {
+          include: {
+            document: true
+          }
+        }
       }
     });
 
@@ -126,4 +174,4 @@ export async function PATCH(request: Request) {
       { status: 500 }
     );
   }
-} 
+}

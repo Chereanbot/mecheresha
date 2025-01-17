@@ -9,33 +9,25 @@ import {
   HiOutlineMail,
   HiOutlinePhone,
   HiOutlineIdentification,
-  HiOutlineCalendar,
-  HiOutlineAcademicCap
+  HiOutlineUserCircle
 } from 'react-icons/hi';
 
 interface CoordinatorProfile {
-  id: string;
   user: {
-    fullName: string;
+    id: string;
     email: string;
     phone: string;
+    userRole: string;
     avatar: string;
   };
-  type: string;
-  status: string;
-  office: {
-    name: string;
-    location: string;
-  };
-  startDate: string;
-  endDate?: string;
-  specialties: string[];
-  qualifications: Array<{
+  coordinator: {
+    id: string;
     type: string;
-    title: string;
-    institution: string;
-    dateObtained: string;
-  }>;
+    office: {
+      id: string;
+      name: string;
+    };
+  };
 }
 
 export default function CoordinatorProfilePage() {
@@ -44,9 +36,10 @@ export default function CoordinatorProfilePage() {
   const [profile, setProfile] = useState<CoordinatorProfile | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState({
-    fullName: '',
     phone: '',
-    specialties: [] as string[],
+    type: '',
+    officeId: '',
+    officeName: ''
   });
 
   useEffect(() => {
@@ -61,9 +54,10 @@ export default function CoordinatorProfilePage() {
       if (data.success) {
         setProfile(data.profile);
         setFormData({
-          fullName: data.profile.user.fullName,
           phone: data.profile.user.phone,
-          specialties: data.profile.specialties,
+          type: data.profile.coordinator.type,
+          officeId: data.profile.coordinator.office.id,
+          officeName: data.profile.coordinator.office.name
         });
       }
     } catch (error) {
@@ -92,10 +86,16 @@ export default function CoordinatorProfilePage() {
           ...prev,
           user: {
             ...prev.user,
-            fullName: formData.fullName,
             phone: formData.phone
           },
-          specialties: formData.specialties
+          coordinator: {
+            ...prev.coordinator,
+            type: formData.type,
+            office: {
+              id: formData.officeId,
+              name: formData.officeName
+            }
+          }
         } : null);
         setIsEditing(false);
       } else {
@@ -179,13 +179,13 @@ export default function CoordinatorProfilePage() {
             </label>
           </div>
           <div>
-            <h1 className="text-2xl font-bold">{profile.user.fullName}</h1>
+            <h1 className="text-2xl font-bold">Coordinator Profile</h1>
             <p className="text-gray-600 dark:text-gray-400">
-              {profile.type} Coordinator
+              {profile.coordinator.type}
             </p>
             <div className="flex items-center mt-2 text-sm text-gray-500 dark:text-gray-400">
               <HiOutlineOfficeBuilding className="w-4 h-4 mr-1" />
-              {profile.office.name} - {profile.office.location}
+              {profile.coordinator.office.name}
             </div>
           </div>
         </div>
@@ -206,18 +206,6 @@ export default function CoordinatorProfilePage() {
 
         {isEditing ? (
           <form onSubmit={handleSubmit} className="space-y-6">
-            {/* Edit Form Fields */}
-            <div>
-              <label className="block text-sm font-medium mb-1">Full Name</label>
-              <input
-                type="text"
-                value={formData.fullName}
-                onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
-                className="w-full rounded-lg border p-2"
-                required
-              />
-            </div>
-
             <div>
               <label className="block text-sm font-medium mb-1">Phone</label>
               <input
@@ -229,16 +217,22 @@ export default function CoordinatorProfilePage() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium mb-1">Specialties</label>
+              <label className="block text-sm font-medium mb-1">Coordinator Type</label>
               <input
                 type="text"
-                value={formData.specialties.join(', ')}
-                onChange={(e) => setFormData({
-                  ...formData,
-                  specialties: e.target.value.split(',').map(s => s.trim())
-                })}
+                value={formData.type}
+                onChange={(e) => setFormData({ ...formData, type: e.target.value })}
                 className="w-full rounded-lg border p-2"
-                placeholder="Enter specialties separated by commas"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium mb-1">Office Name</label>
+              <input
+                type="text"
+                value={formData.officeName}
+                onChange={(e) => setFormData({ ...formData, officeName: e.target.value })}
+                className="w-full rounded-lg border p-2"
               />
             </div>
 
@@ -254,8 +248,12 @@ export default function CoordinatorProfilePage() {
           </form>
         ) : (
           <div className="space-y-6">
-            {/* Display Profile Information */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <InfoItem
+                icon={HiOutlineUserCircle}
+                label="User ID"
+                value={profile.user.id}
+              />
               <InfoItem
                 icon={HiOutlineMail}
                 label="Email"
@@ -268,55 +266,9 @@ export default function CoordinatorProfilePage() {
               />
               <InfoItem
                 icon={HiOutlineIdentification}
-                label="Status"
-                value={profile.status}
+                label="Role"
+                value={profile.user.userRole}
               />
-              <InfoItem
-                icon={HiOutlineCalendar}
-                label="Start Date"
-                value={new Date(profile.startDate).toLocaleDateString()}
-              />
-            </div>
-
-            {/* Specialties */}
-            <div className="mt-6">
-              <h3 className="text-lg font-medium mb-3">Specialties</h3>
-              <div className="flex flex-wrap gap-2">
-                {profile.specialties.map((specialty, index) => (
-                  <span
-                    key={index}
-                    className="px-3 py-1 bg-primary-50 dark:bg-primary-900/20 
-                      text-primary-700 dark:text-primary-300 rounded-full text-sm"
-                  >
-                    {specialty}
-                  </span>
-                ))}
-              </div>
-            </div>
-
-            {/* Qualifications */}
-            <div className="mt-6">
-              <h3 className="text-lg font-medium mb-3">Qualifications</h3>
-              <div className="space-y-4">
-                {profile.qualifications.map((qual, index) => (
-                  <div
-                    key={index}
-                    className="flex items-start space-x-3 p-4 bg-gray-50 
-                      dark:bg-gray-700/50 rounded-lg"
-                  >
-                    <HiOutlineAcademicCap className="w-5 h-5 text-primary-500 mt-1" />
-                    <div>
-                      <h4 className="font-medium">{qual.title}</h4>
-                      <p className="text-sm text-gray-600 dark:text-gray-400">
-                        {qual.institution}
-                      </p>
-                      <p className="text-sm text-gray-500 dark:text-gray-400">
-                        {new Date(qual.dateObtained).toLocaleDateString()}
-                      </p>
-                    </div>
-                  </div>
-                ))}
-              </div>
             </div>
           </div>
         )}
@@ -335,4 +287,4 @@ function InfoItem({ icon: Icon, label, value }: { icon: any; label: string; valu
       </div>
     </div>
   );
-} 
+}

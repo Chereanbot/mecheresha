@@ -1,313 +1,259 @@
 "use client";
 
-import { Fragment, useState } from 'react';
-import { Dialog, Transition } from '@headlessui/react';
-import { HiOutlineX, HiOutlinePlus, HiOutlineTrash } from 'react-icons/hi';
+import { useState, useEffect } from 'react';
+import { Dialog } from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { Select } from '@/components/ui/select';
+import { toast } from 'react-hot-toast';
+
+interface Specialization {
+  id?: string;
+  facultyName: string;
+  title: string;
+  department: string;
+  specialization: string;
+  description: string;
+  yearsOfExperience: number;
+  expertise: string[];
+}
 
 interface SpecializationModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (data: any) => void;
-  initialData?: any;
+  initialData?: Specialization | null;
 }
 
-const SpecializationModal = ({
+export default function SpecializationModal({
   isOpen,
   onClose,
-  onSubmit,
   initialData
-}: SpecializationModalProps) => {
-  const [formData, setFormData] = useState({
-    facultyName: initialData?.facultyName || '',
-    title: initialData?.title || '',
-    department: initialData?.department || '',
-    specialization: initialData?.specialization || '',
-    description: initialData?.description || '',
-    yearsOfExperience: initialData?.yearsOfExperience || 0,
-    expertise: initialData?.expertise || [''],
-    education: initialData?.education || [
-      { degree: '', institution: '', year: new Date().getFullYear() }
-    ]
+}: SpecializationModalProps) {
+  const [formData, setFormData] = useState<Specialization>({
+    facultyName: '',
+    title: '',
+    department: '',
+    specialization: '',
+    description: '',
+    yearsOfExperience: 0,
+    expertise: []
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const [loading, setLoading] = useState(false);
+  const [expertiseInput, setExpertiseInput] = useState('');
+
+  useEffect(() => {
+    if (initialData) {
+      setFormData(initialData);
+    }
+  }, [initialData]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    onSubmit(formData);
+    setLoading(true);
+
+    try {
+      const response = await fetch('/api/admin/specializations', {
+        method: initialData ? 'PATCH' : 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData)
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to save specialization');
+      }
+
+      toast.success(
+        initialData 
+          ? 'Specialization updated successfully' 
+          : 'Specialization added successfully'
+      );
+      onClose();
+    } catch (error) {
+      console.error('Error saving specialization:', error);
+      toast.error('Failed to save specialization');
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const addExpertise = () => {
-    setFormData(prev => ({
-      ...prev,
-      expertise: [...prev.expertise, '']
-    }));
+  const handleAddExpertise = () => {
+    if (expertiseInput.trim()) {
+      setFormData(prev => ({
+        ...prev,
+        expertise: [...prev.expertise, expertiseInput.trim()]
+      }));
+      setExpertiseInput('');
+    }
   };
 
-  const removeExpertise = (index: number) => {
+  const handleRemoveExpertise = (index: number) => {
     setFormData(prev => ({
       ...prev,
       expertise: prev.expertise.filter((_, i) => i !== index)
     }));
   };
 
-  const addEducation = () => {
-    setFormData(prev => ({
-      ...prev,
-      education: [...prev.education, { degree: '', institution: '', year: new Date().getFullYear() }]
-    }));
-  };
-
-  const removeEducation = (index: number) => {
-    setFormData(prev => ({
-      ...prev,
-      education: prev.education.filter((_, i) => i !== index)
-    }));
-  };
-
   return (
-    <Transition appear show={isOpen} as={Fragment}>
-      <Dialog as="div" className="relative z-50" onClose={onClose}>
-        <Transition.Child
-          as={Fragment}
-          enter="ease-out duration-300"
-          enterFrom="opacity-0"
-          enterTo="opacity-100"
-          leave="ease-in duration-200"
-          leaveFrom="opacity-100"
-          leaveTo="opacity-0"
-        >
-          <div className="fixed inset-0 bg-black/50" />
-        </Transition.Child>
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+          <div className="p-6">
+            <h2 className="text-2xl font-bold mb-6">
+              {initialData ? 'Edit' : 'Add'} Faculty Specialization
+            </h2>
 
-        <div className="fixed inset-0 overflow-y-auto">
-          <div className="flex min-h-full items-center justify-center p-4">
-            <Transition.Child
-              as={Fragment}
-              enter="ease-out duration-300"
-              enterFrom="opacity-0 scale-95"
-              enterTo="opacity-100 scale-100"
-              leave="ease-in duration-200"
-              leaveFrom="opacity-100 scale-100"
-              leaveTo="opacity-0 scale-95"
-            >
-              <Dialog.Panel className="relative bg-white dark:bg-gray-800 rounded-lg max-w-2xl w-full p-6">
-                <button
+            <form onSubmit={handleSubmit} className="space-y-6">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="facultyName">Faculty Name</Label>
+                  <Input
+                    id="facultyName"
+                    value={formData.facultyName}
+                    onChange={(e) => setFormData(prev => ({
+                      ...prev,
+                      facultyName: e.target.value
+                    }))}
+                    required
+                  />
+                </div>
+
+                <div>
+                  <Label htmlFor="title">Academic Title</Label>
+                  <Select
+                    id="title"
+                    value={formData.title}
+                    onChange={(e) => setFormData(prev => ({
+                      ...prev,
+                      title: e.target.value
+                    }))}
+                    required
+                  >
+                    <option value="">Select Title</option>
+                    <option value="Professor">Professor</option>
+                    <option value="Associate Professor">Associate Professor</option>
+                    <option value="Assistant Professor">Assistant Professor</option>
+                    <option value="Lecturer">Lecturer</option>
+                  </Select>
+                </div>
+
+                <div>
+                  <Label htmlFor="department">Department</Label>
+                  <Select
+                    id="department"
+                    value={formData.department}
+                    onChange={(e) => setFormData(prev => ({
+                      ...prev,
+                      department: e.target.value
+                    }))}
+                    required
+                  >
+                    <option value="">Select Department</option>
+                    <option value="Criminal Law">Criminal Law</option>
+                    <option value="Civil Law">Civil Law</option>
+                    <option value="Constitutional Law">Constitutional Law</option>
+                    <option value="Commercial Law">Commercial Law</option>
+                  </Select>
+                </div>
+
+                <div>
+                  <Label htmlFor="specialization">Specialization</Label>
+                  <Input
+                    id="specialization"
+                    value={formData.specialization}
+                    onChange={(e) => setFormData(prev => ({
+                      ...prev,
+                      specialization: e.target.value
+                    }))}
+                    required
+                  />
+                </div>
+
+                <div>
+                  <Label htmlFor="yearsOfExperience">Years of Experience</Label>
+                  <Input
+                    id="yearsOfExperience"
+                    type="number"
+                    min="0"
+                    value={formData.yearsOfExperience}
+                    onChange={(e) => setFormData(prev => ({
+                      ...prev,
+                      yearsOfExperience: parseInt(e.target.value)
+                    }))}
+                    required
+                  />
+                </div>
+              </div>
+
+              <div>
+                <Label htmlFor="description">Description</Label>
+                <Textarea
+                  id="description"
+                  value={formData.description}
+                  onChange={(e) => setFormData(prev => ({
+                    ...prev,
+                    description: e.target.value
+                  }))}
+                  rows={4}
+                  required
+                />
+              </div>
+
+              <div>
+                <Label>Areas of Expertise</Label>
+                <div className="flex gap-2 mb-2">
+                  <Input
+                    value={expertiseInput}
+                    onChange={(e) => setExpertiseInput(e.target.value)}
+                    placeholder="Add area of expertise"
+                  />
+                  <Button 
+                    type="button"
+                    onClick={handleAddExpertise}
+                  >
+                    Add
+                  </Button>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {formData.expertise.map((area, index) => (
+                    <span
+                      key={index}
+                      className="px-3 py-1 bg-primary-50 text-primary-700 rounded-full text-sm flex items-center gap-2"
+                    >
+                      {area}
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveExpertise(index)}
+                        className="text-primary-700 hover:text-primary-900"
+                      >
+                        ×
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-4 pt-4 border-t">
+                <Button
+                  type="button"
+                  variant="outline"
                   onClick={onClose}
-                  className="absolute top-4 right-4 text-gray-400 hover:text-gray-600"
                 >
-                  <HiOutlineX className="w-6 h-6" />
-                </button>
-
-                <Dialog.Title className="text-xl font-semibold mb-6">
-                  {initialData ? 'Edit Faculty Specialization' : 'Add Faculty Specialization'}
-                </Dialog.Title>
-
-                <form onSubmit={handleSubmit} className="space-y-6">
-                  {/* Basic Information */}
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium mb-1">Faculty Name</label>
-                      <input
-                        type="text"
-                        value={formData.facultyName}
-                        onChange={e => setFormData(prev => ({ ...prev, facultyName: e.target.value }))}
-                        className="w-full rounded-lg border p-2"
-                        required
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium mb-1">Academic Title</label>
-                      <input
-                        type="text"
-                        value={formData.title}
-                        onChange={e => setFormData(prev => ({ ...prev, title: e.target.value }))}
-                        className="w-full rounded-lg border p-2"
-                        required
-                      />
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium mb-1">Department</label>
-                      <select
-                        value={formData.department}
-                        onChange={e => setFormData(prev => ({ ...prev, department: e.target.value }))}
-                        className="w-full rounded-lg border p-2"
-                        required
-                      >
-                        <option value="">Select Department</option>
-                        <option value="Criminal Law">Criminal Law</option>
-                        <option value="Civil Law">Civil Law</option>
-                        <option value="Constitutional Law">Constitutional Law</option>
-                        <option value="Commercial Law">Commercial Law</option>
-                      </select>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium mb-1">Years of Experience</label>
-                      <input
-                        type="number"
-                        value={formData.yearsOfExperience}
-                        onChange={e => setFormData(prev => ({ ...prev, yearsOfExperience: parseInt(e.target.value) }))}
-                        className="w-full rounded-lg border p-2"
-                        min="0"
-                        required
-                      />
-                    </div>
-                  </div>
-
-                  {/* Specialization and Description */}
-                  <div>
-                    <label className="block text-sm font-medium mb-1">Specialization</label>
-                    <input
-                      type="text"
-                      value={formData.specialization}
-                      onChange={e => setFormData(prev => ({ ...prev, specialization: e.target.value }))}
-                      className="w-full rounded-lg border p-2"
-                      required
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium mb-1">Description</label>
-                    <textarea
-                      value={formData.description}
-                      onChange={e => setFormData(prev => ({ ...prev, description: e.target.value }))}
-                      className="w-full rounded-lg border p-2"
-                      rows={3}
-                      required
-                    />
-                  </div>
-
-                  {/* Areas of Expertise */}
-                  <div>
-                    <div className="flex justify-between items-center mb-2">
-                      <label className="block text-sm font-medium">Areas of Expertise</label>
-                      <button
-                        type="button"
-                        onClick={addExpertise}
-                        className="text-primary-600 hover:text-primary-700"
-                      >
-                        <HiOutlinePlus className="w-5 h-5" />
-                      </button>
-                    </div>
-                    {formData.expertise.map((expertise, index) => (
-                      <div key={index} className="flex gap-2 mb-2">
-                        <input
-                          type="text"
-                          value={expertise}
-                          onChange={e => {
-                            const newExpertise = [...formData.expertise];
-                            newExpertise[index] = e.target.value;
-                            setFormData(prev => ({ ...prev, expertise: newExpertise }));
-                          }}
-                          className="flex-1 rounded-lg border p-2"
-                          placeholder="Enter area of expertise"
-                          required
-                        />
-                        {formData.expertise.length > 1 && (
-                          <button
-                            type="button"
-                            onClick={() => removeExpertise(index)}
-                            className="text-red-500 hover:text-red-600"
-                          >
-                            <HiOutlineTrash className="w-5 h-5" />
-                          </button>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-
-                  {/* Education */}
-                  <div>
-                    <div className="flex justify-between items-center mb-2">
-                      <label className="block text-sm font-medium">Education</label>
-                      <button
-                        type="button"
-                        onClick={addEducation}
-                        className="text-primary-600 hover:text-primary-700"
-                      >
-                        <HiOutlinePlus className="w-5 h-5" />
-                      </button>
-                    </div>
-                    {formData.education.map((edu, index) => (
-                      <div key={index} className="grid grid-cols-3 gap-2 mb-2">
-                        <input
-                          type="text"
-                          value={edu.degree}
-                          onChange={e => {
-                            const newEducation = [...formData.education];
-                            newEducation[index] = { ...edu, degree: e.target.value };
-                            setFormData(prev => ({ ...prev, education: newEducation }));
-                          }}
-                          className="rounded-lg border p-2"
-                          placeholder="Degree"
-                          required
-                        />
-                        <input
-                          type="text"
-                          value={edu.institution}
-                          onChange={e => {
-                            const newEducation = [...formData.education];
-                            newEducation[index] = { ...edu, institution: e.target.value };
-                            setFormData(prev => ({ ...prev, education: newEducation }));
-                          }}
-                          className="rounded-lg border p-2"
-                          placeholder="Institution"
-                          required
-                        />
-                        <div className="flex gap-2">
-                          <input
-                            type="number"
-                            value={edu.year}
-                            onChange={e => {
-                              const newEducation = [...formData.education];
-                              newEducation[index] = { ...edu, year: parseInt(e.target.value) };
-                              setFormData(prev => ({ ...prev, education: newEducation }));
-                            }}
-                            className="flex-1 rounded-lg border p-2"
-                            placeholder="Year"
-                            min="1900"
-                            max={new Date().getFullYear()}
-                            required
-                          />
-                          {formData.education.length > 1 && (
-                            <button
-                              type="button"
-                              onClick={() => removeEducation(index)}
-                              className="text-red-500 hover:text-red-600"
-                            >
-                              <HiOutlineTrash className="w-5 h-5" />
-                            </button>
-                          )}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-
-                  {/* Submit Buttons */}
-                  <div className="flex justify-end space-x-4">
-                    <button
-                      type="button"
-                      onClick={onClose}
-                      className="px-4 py-2 text-gray-600 hover:text-gray-800"
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      type="submit"
-                      className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700"
-                    >
-                      {initialData ? 'Update' : 'Create'}
-                    </button>
-                  </div>
-                </form>
-              </Dialog.Panel>
-            </Transition.Child>
+                  Cancel
+                </Button>
+                <Button
+                  type="submit"
+                  disabled={loading}
+                >
+                  {loading ? 'Saving...' : initialData ? 'Update' : 'Create'}
+                </Button>
+              </div>
+            </form>
           </div>
         </div>
-      </Dialog>
-    </Transition>
+      </div>
+    </Dialog>
   );
-};
-
-export default SpecializationModal; 
+} 

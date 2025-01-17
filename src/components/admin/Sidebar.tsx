@@ -30,6 +30,10 @@ import {
   HiOutlineStar,
   HiOutlineCollection,
   HiOutlineDocument,
+  HiOutlineChatAlt2,
+  HiOutlineInbox,
+  HiOutlinePaperAirplane,
+  HiOutlineArchive,
 } from 'react-icons/hi';
 import { useAdmin } from '@/contexts/AdminContext';
 
@@ -50,6 +54,30 @@ const menuItems: MenuItem[] = [
     title: 'Dashboard',
     icon: HiOutlineChartPie,
     path: '/admin/dashboard'
+  },
+  {
+    title: 'Messages',
+    icon: HiOutlineChatAlt2,
+    submenu: [
+      {
+        title: 'Lawyer Messages',
+        path: '/admin/messages/lawyer',
+        icon: HiOutlineUserGroup,
+        description: 'View received messages'
+      },
+      {
+        title: 'Client Messages',
+        path: '/admin/messages/client',
+        icon: HiOutlineUserGroup,
+        description: 'View sent messages'
+      },
+      {
+        title: 'Coordinator Messages',
+        path: '/admin/messages/coordinator',
+        icon: HiOutlineUserGroup,
+        description: 'View archived messages'
+      }
+    ]
   },
   {
     title: 'User Management',
@@ -97,6 +125,12 @@ const menuItems: MenuItem[] = [
         icon: HiOutlineBriefcase,
         description: 'View and manage all lawyers'
       },
+       {
+        title: 'Specializations',
+        path: '/admin/lawyers/specializations',
+        icon: HiOutlineBadgeCheck,
+        description: 'Manage lawyer expertise areas'
+      },
       { 
         title: 'Faculty Workload', 
         path: '/admin/lawyers/workload',
@@ -109,18 +143,8 @@ const menuItems: MenuItem[] = [
         icon: HiOutlineDocumentDuplicate,
         description: 'Manage case assignments from coordinators'
       },
-      { 
-        title: 'Office Assignments', 
-        path: '/admin/lawyers/office-assignments',
-        icon: HiOutlineOfficeBuilding,
-        description: 'Assign lawyers to specific offices'
-      },
-      { 
-        title: 'Performance', 
-        path: '/admin/lawyers/performance',
-        icon: HiOutlineChartBar,
-        description: 'Monitor lawyer case resolution rates'
-      },
+    
+  
       { 
         title: 'Client Payments', 
         path: '/admin/lawyers/payments',
@@ -139,16 +163,11 @@ const menuItems: MenuItem[] = [
         icon: HiOutlineClock,
         description: 'Manage lawyer schedules and status'
       },
-      {
-        title: 'Specializations',
-        path: '/admin/lawyers/specializations',
-        icon: HiOutlineBadgeCheck,
-        description: 'Manage lawyer expertise areas'
-      }
+     
     ]
   },
   {
-    title: 'Case Management',
+    title: 'Cases',
     icon: HiOutlineScale,
     submenu: [
       { 
@@ -156,6 +175,12 @@ const menuItems: MenuItem[] = [
         path: '/admin/cases/dashboard',
         icon: HiOutlineChartPie,
         description: 'Case analytics and metrics'
+      },
+      {
+        title: 'New Case', 
+        path: '/admin/cases/new',
+        icon: HiOutlineUserGroup,
+        description: 'Add new case'
       },
       { 
         title: 'Active Cases', 
@@ -196,9 +221,15 @@ const menuItems: MenuItem[] = [
     ]
   },
   {
-    title: 'Office Management',
+    title: 'Centers',
     icon: HiOutlineOfficeBuilding,
     submenu: [
+      { 
+        title: 'All Offices', 
+        path: '/admin/offices',
+        icon: HiOutlineCog,
+        description: 'Manage all offices'
+      },
       { 
         title: 'Resources', 
         path: '/admin/office/resources',
@@ -217,6 +248,24 @@ const menuItems: MenuItem[] = [
         icon: HiOutlineDocumentReport,
         description: 'Office planning and scheduling'
       }
+    ]
+  },
+  {
+    title: 'Kebele',
+    icon: HiOutlineOfficeBuilding,
+    submenu: [
+      { 
+        title: 'All Kebeles', 
+        path: '/admin/kebeles',
+        icon: HiOutlineOfficeBuilding,
+        description: 'Manage all kebele offices'
+      },
+      { 
+        title: 'Staff Management', 
+        path: '/admin/kebeles/staff',
+        icon: HiOutlineUsers,
+        description: 'Manage kebele staff and roles'
+      },
     ]
   },
   {
@@ -265,6 +314,60 @@ const menuItems: MenuItem[] = [
       { title: 'Statistics', path: '/admin/reports/statistics', icon: HiOutlineClipboardList, description: 'View statistics reports' },
       { title: 'Performance', path: '/admin/reports/performance', icon: HiOutlineClipboardList, description: 'View performance reports' },
       { title: 'Financial', path: '/admin/reports/financial', icon: HiOutlineClipboardList, description: 'View financial reports' }
+    ]
+  },
+  {
+    title: 'Settings',
+    icon: HiOutlineCog,
+    submenu: [
+      { 
+        title: 'General Settings', 
+        path: '/admin/settings/general',
+        icon: HiOutlineCog,
+        description: 'Configure general system settings'
+      },
+      { 
+        title: 'Security Settings', 
+        path: '/admin/settings/security',
+        icon: HiOutlineLockClosed,
+        description: 'Manage security configurations'
+      },
+      { 
+        title: 'Email Settings', 
+        path: '/admin/settings/email',
+        icon: HiOutlinePaperAirplane,
+        description: 'Configure email notifications and templates'
+      },
+      { 
+        title: 'Billing Settings', 
+        path: '/admin/settings/billing',
+        icon: HiOutlineCash,
+        description: 'Manage billing configurations'
+      },
+      { 
+        title: 'API Settings', 
+        path: '/admin/settings/api',
+        icon: HiOutlineKey,
+        description: 'Configure API keys and integrations'
+      },
+      { 
+        title: 'Backup & Restore', 
+        path: '/admin/settings/backup',
+        icon: HiOutlineArchive,
+        description: 'Manage system backups and restoration'
+      },
+      { 
+        title: 'Notifications', 
+        path: '/admin/settings/notifications',
+        icon: HiOutlineInbox,
+        description: 'Configure system notifications'
+      },
+      { 
+        title: 'Appearance', 
+        path: '/admin/settings/appearance',
+        icon: HiOutlineLightBulb,
+        description: 'Customize system appearance'
+      }
     ]
   }
 ];
@@ -424,6 +527,17 @@ const Sidebar = () => {
   const renderIcon = (Icon: React.ComponentType<{ className?: string }>) => {
     return <Icon className="w-6 h-6" />;
   };
+
+  const adminLinks = [
+    // ... existing links
+    {
+      href: '/admin/users/verification',
+      label: 'User Verification',
+      icon: HiOutlineShieldCheck, // Add this import if not already present
+      roles: ['ADMIN']
+    },
+    // ... other links
+  ];
 
   return (
     <>

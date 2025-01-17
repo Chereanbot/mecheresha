@@ -4,7 +4,8 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import MatrixBackground from './MatrixBackground';
-import { showToast, hideToast } from '@/utils/auth';
+import { showToast, hideToast } from '@/utils/toast';
+import { showAuthError, showAuthSuccess, showAuthLoading } from '@/utils/auth';
 
 interface ForgotPasswordForm {
   method: 'email' | 'phone';
@@ -41,13 +42,13 @@ const ForgotPassword = () => {
 
     try {
       setIsLoading(true);
-      const loadingToast = showToast('Sending recovery code...', 'loading');
+      const loadingToast = showToast('Sending reset link...', 'loading');
 
-      // Simulate API call to send recovery code
+      // Simulate API call to send reset link
       await new Promise(resolve => setTimeout(resolve, 1500));
 
       hideToast(loadingToast);
-      showToast(`Recovery code sent to your ${formData.method}`, 'success');
+      showToast('Reset link sent successfully!', 'success');
       
       // Store the recovery method and identifier for the verification step
       sessionStorage.setItem('recoveryMethod', formData.method);
@@ -109,7 +110,7 @@ const ForgotPassword = () => {
             className="btn btn-primary"
             disabled={isLoading}
           >
-            {isLoading ? 'Sending...' : 'Send Recovery Code'}
+            {isLoading ? 'Sending...' : 'Send Reset Link'}
           </button>
 
           <p className="auth-link">

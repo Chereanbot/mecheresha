@@ -10,12 +10,13 @@ export const useRoles = () => {
 
   const fetchRoles = async () => {
     try {
-      const [rolesData, permissionsData] = await Promise.all([
+      const [rolesResponse, permissionsResponse] = await Promise.all([
         roleService.getAllRoles(),
         roleService.getAllPermissions()
       ]);
-      setRoles(rolesData);
-      setPermissions(permissionsData);
+      
+      setRoles(rolesResponse.data || []);
+      setPermissions(permissionsResponse.data || []);
       setError(null);
     } catch (err: any) {
       setError(err.message || 'Failed to fetch roles');
@@ -62,6 +63,28 @@ export const useRoles = () => {
     }
   };
 
+  const assignPermission = async (roleId: string, permissionId: string) => {
+    try {
+      await roleService.assignPermission(roleId, permissionId);
+      await fetchRoles(); // Refresh roles after assignment
+      toast.success('Permission assigned successfully');
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to assign permission');
+      throw err;
+    }
+  };
+
+  const removePermission = async (roleId: string, permissionId: string) => {
+    try {
+      await roleService.removePermission(roleId, permissionId);
+      await fetchRoles(); // Refresh roles after removal
+      toast.success('Permission removed successfully');
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to remove permission');
+      throw err;
+    }
+  };
+
   useEffect(() => {
     fetchRoles();
   }, []);
@@ -74,6 +97,8 @@ export const useRoles = () => {
     createRole,
     updateRole,
     deleteRole,
-    refreshRoles: fetchRoles
+    refreshRoles: fetchRoles,
+    assignPermission,
+    removePermission
   };
 }; 

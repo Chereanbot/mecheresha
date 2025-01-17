@@ -7,126 +7,100 @@ import { getAvatarUrl } from '@/utils/avatar';
 
 interface AdminUser {
   id: string;
-  name: string;
   email: string;
-  role: string;
-  avatar: string;
-}
-
-interface Notification {
-  id: string;
-  title: string;
-  message: string;
-  time: string;
-  read: boolean;
+  fullName: string;
+  userRole: string;
+  status: string;
+  isAdmin: boolean;
+  avatar?: string;
 }
 
 interface AdminContextType {
-  adminUser: AdminUser | null;
-  notifications: Notification[];
-  isLoading: boolean;
-  markNotificationAsRead: (id: string) => void;
+  user: AdminUser | null;
+  loading: boolean;
+  error: string | null;
   logout: () => void;
 }
 
 const AdminContext = createContext<AdminContextType | undefined>(undefined);
 
 export function AdminProvider({ children }: { children: React.ReactNode }) {
-  const [adminUser, setAdminUser] = useState<AdminUser | null>(null);
-  const [notifications, setNotifications] = useState<Notification[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [user, setUser] = useState<AdminUser | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const router = useRouter();
 
-  useEffect(() => {
-    const loadAdminData = async () => {
-      try {
-        // Check if user is authenticated
-        const token = localStorage.getItem('token');
-        if (!token) {
-          router.push('/login');
-          return;
-        }
+  const loadAdminData = async () => {
+    try {
+      // Check both token and session
+      const token = localStorage.getItem('token');
+      const cookieToken = document.cookie.match(/auth-token=([^;]+)/)?.[1];
 
-        // Simulate loading admin data
-        const mockAdminUser = {
-          id: '1',
-          name: 'Admin User',
-          email: 'admin@example.com',
-          role: 'SUPER_ADMIN',
-          avatar: getAvatarUrl('Admin User')
-        };
-
-        // Simulate loading notifications
-        const mockNotifications = [
-          {
-            id: '1',
-            title: 'New Case Assignment',
-            message: 'A new case has been assigned to your office',
-            time: '5 minutes ago',
-            read: false
-          },
-          {
-            id: '2',
-            title: 'Performance Report',
-            message: 'Monthly performance report is ready for review',
-            time: '1 hour ago',
-            read: false
-          }
-        ];
-
-        setAdminUser(mockAdminUser);
-        setNotifications(mockNotifications);
-      } catch (error) {
-        console.error('Error loading admin data:', error);
-        toast.error('Failed to load admin data');
+      if (!token && !cookieToken) {
         router.push('/login');
-      } finally {
-        setIsLoading(false);
+        return;
       }
-    };
 
+      // Try to verify with token
+      const response = await fetch('/api/auth/verify', {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token || cookieToken}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Authentication failed');
+      }
+
+      if (!data.isAuthenticated || !data.user) {
+        throw new Error('Unauthorized access');
+      }
+
+      // Verify admin role
+      if (!data.user.isAdmin) {
+        throw new Error('Unauthorized access - Admin only');
+      }
+
+      // Add avatar URL to user data
+      const userWithAvatar = {
+        ...data.user,
+        avatar: getAvatarUrl(data.user.email)
+      };
+
+      setUser(userWithAvatar);
+      setError(null);
+
+    } catch (error) {
+      console.error('Error loading admin data:', error);
+      toast.error('Authentication failed');
+      router.push('/login');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
     loadAdminData();
-  }, [router]);
+  }, []);
 
-  const markNotificationAsRead = (id: string) => {
-    setNotifications(prev => 
-      prev.map(notif => 
-        notif.id === id ? { ...notif, read: true } : notif
-      )
-    );
+  const logout = async () => {
+    try {
+      localStorage.removeItem('token');
+      document.cookie = 'auth-token=; Path=/; Expires=Thu, 01 Jan 1970 00:00:01 GMT;';
+      setUser(null);
+      router.push('/login');
+    } catch (error) {
+      console.error('Logout error:', error);
+      toast.error('Failed to logout');
+    }
   };
-
-  const logout = () => {
-    // Clear admin data
-    setAdminUser(null);
-    setNotifications([]);
-    
-    // Clear auth tokens
-    localStorage.removeItem('token');
-    document.cookie = 'token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
-    
-    // Redirect to login
-    router.push('/login');
-    toast.success('Logged out successfully');
-  };
-
-  // Show loading state
-  if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-500"></div>
-      </div>
-    );
-  }
 
   return (
-    <AdminContext.Provider value={{ 
-      adminUser, 
-      notifications, 
-      isLoading,
-      markNotificationAsRead,
-      logout 
-    }}>
+    <AdminContext.Provider value={{ user, loading, error, logout }}>
       {children}
     </AdminContext.Provider>
   );

@@ -1,4 +1,4 @@
-type ToastType = 'success' | 'error' | 'loading' | 'info';
+type ToastType = 'success' | 'error' | 'loading' | 'info' | 'warning' | 'default';
 
 interface ToastOptions {
   duration?: number;
@@ -55,20 +55,37 @@ class ToastManager {
       min-width: 300px;
     `;
 
-    // Add appropriate color based on type
+    // Enhanced colors and styles based on type
     switch (type) {
       case 'success':
         toast.style.borderLeft = '4px solid #10B981';
+        toast.style.backgroundColor = '#ECFDF5';
+        toast.style.color = '#065F46';
         break;
       case 'error':
         toast.style.borderLeft = '4px solid #EF4444';
+        toast.style.backgroundColor = '#FEF2F2';
+        toast.style.color = '#991B1B';
         break;
       case 'loading':
         toast.style.borderLeft = '4px solid #3B82F6';
+        toast.style.backgroundColor = '#EFF6FF';
+        toast.style.color = '#1E40AF';
         break;
       case 'info':
         toast.style.borderLeft = '4px solid #6B7280';
+        toast.style.backgroundColor = '#F3F4F6';
+        toast.style.color = '#1F2937';
         break;
+      case 'warning':
+        toast.style.borderLeft = '4px solid #F59E0B';
+        toast.style.backgroundColor = '#FFFBEB';
+        toast.style.color = '#92400E';
+        break;
+      default:
+        toast.style.borderLeft = '4px solid #9CA3AF';
+        toast.style.backgroundColor = '#FFFFFF';
+        toast.style.color = '#374151';
     }
 
     toast.textContent = message;

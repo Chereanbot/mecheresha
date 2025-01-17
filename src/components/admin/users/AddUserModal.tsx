@@ -1,6 +1,8 @@
 import { useState } from 'react';
-import { Role } from '@prisma/client';
+import { UserRoleEnum } from '@prisma/client';
 import { motion } from 'framer-motion';
+import { toast } from 'react-hot-toast';
+import { useRouter } from 'next/navigation';
 
 interface AddUserModalProps {
   onClose: () => void;
@@ -11,7 +13,7 @@ interface UserFormData {
   email: string;
   fullName: string;
   password: string;
-  role: Role;
+  role: UserRoleEnum;
   phone?: string;
   specializations?: string[];
   experience?: number;
@@ -20,12 +22,14 @@ interface UserFormData {
 }
 
 export default function AddUserModal({ onClose, onSubmit }: AddUserModalProps) {
+  const router = useRouter();
   const [step, setStep] = useState(1);
+  const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState<UserFormData>({
     email: '',
     fullName: '',
     password: '',
-    role: 'CLIENT',
+    role: UserRoleEnum.CLIENT,
     phone: '',
     specializations: [],
     experience: 0,
@@ -35,10 +39,14 @@ export default function AddUserModal({ onClose, onSubmit }: AddUserModalProps) {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
     try {
+      setLoading(true);
+
       // Validate required fields
       if (!formData.email || !formData.password || !formData.fullName) {
-        throw new Error('Please fill in all required fields');
+        toast.error('Please fill in all required fields');
+        return;
       }
 
       // Clean up the data before submission
@@ -46,17 +54,28 @@ export default function AddUserModal({ onClose, onSubmit }: AddUserModalProps) {
         ...formData,
         // Remove undefined or empty values
         phone: formData.phone || undefined,
-        specializations: formData.role === 'LAWYER' ? formData.specializations : undefined,
-        experience: formData.role === 'LAWYER' ? formData.experience : undefined,
-        company: formData.role === 'CLIENT' ? formData.company : undefined,
-        address: formData.role === 'CLIENT' ? formData.address : undefined,
+        specializations: formData.role === UserRoleEnum.LAWYER ? formData.specializations : undefined,
+        experience: formData.role === UserRoleEnum.LAWYER ? formData.experience : undefined,
+        company: formData.role === UserRoleEnum.CLIENT ? formData.company : undefined,
+        address: formData.role === UserRoleEnum.CLIENT ? formData.address : undefined,
       };
 
-      await onSubmit(submitData);
-      onClose();
+      const response = await onSubmit(submitData);
+      
+      if (formData.role === UserRoleEnum.COORDINATOR) {
+        toast.success('Basic coordinator account created. Please complete the profile setup.');
+        router.push(`/admin/coordinators/new?userId=${response?.data?.user?.id}`);
+      } else if (formData.role === UserRoleEnum.LAWYER) {
+        toast.success('Basic lawyer account created. Please complete the profile setup.');
+        router.push(`/admin/lawyers/new?userId=${response?.data?.user?.id}`);
+      } else {
+        onClose();
+      }
     } catch (error: any) {
       console.error('Error adding user:', error);
-      // You might want to show an error message to the user here
+      toast.error(error.message || 'Failed to create user');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -66,13 +85,14 @@ export default function AddUserModal({ onClose, onSubmit }: AddUserModalProps) {
         <label className="block text-sm font-medium mb-1">Role</label>
         <select
           value={formData.role}
-          onChange={(e) => setFormData({ ...formData, role: e.target.value as Role })}
+          onChange={(e) => setFormData({ ...formData, role: e.target.value as UserRoleEnum })}
           className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500"
         >
-          <option value="CLIENT">Client</option>
-          <option value="LAWYER">Lawyer</option>
-          <option value="ADMIN">Admin</option>
-          <option value="SUPER_ADMIN">Super Admin</option>
+          <option value={UserRoleEnum.CLIENT}>Client</option>
+          <option value={UserRoleEnum.LAWYER}>Lawyer</option>
+          <option value={UserRoleEnum.COORDINATOR}>Coordinator</option>
+          <option value={UserRoleEnum.ADMIN}>Admin</option>
+          <option value={UserRoleEnum.SUPER_ADMIN}>Super Admin</option>
         </select>
       </div>
 
@@ -115,12 +135,28 @@ export default function AddUserModal({ onClose, onSubmit }: AddUserModalProps) {
           className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500"
         />
       </div>
+
+      {formData.role === UserRoleEnum.COORDINATOR && (
+        <div className="mt-4 p-4 bg-yellow-50 dark:bg-yellow-900/30 rounded-lg">
+          <p className="text-sm text-yellow-800 dark:text-yellow-200">
+            Note: After creating the coordinator account, you will be redirected to complete their profile setup.
+          </p>
+        </div>
+      )}
+
+      {formData.role === UserRoleEnum.LAWYER && (
+        <div className="mt-4 p-4 bg-blue-50 dark:bg-blue-900/30 rounded-lg">
+          <p className="text-sm text-blue-800 dark:text-blue-200">
+            Note: After creating the lawyer account, you will be redirected to complete their profile setup.
+          </p>
+        </div>
+      )}
     </div>
   );
 
   const renderStepTwo = () => {
     switch (formData.role) {
-      case 'LAWYER':
+      case UserRoleEnum.LAWYER:
         return (
           <div className="space-y-4">
             <div>
@@ -153,7 +189,7 @@ export default function AddUserModal({ onClose, onSubmit }: AddUserModalProps) {
           </div>
         );
 
-      case 'CLIENT':
+      case UserRoleEnum.CLIENT:
         return (
           <div className="space-y-4">
             <div>
@@ -183,6 +219,8 @@ export default function AddUserModal({ onClose, onSubmit }: AddUserModalProps) {
     }
   };
 
+  const shouldShowStepTwo = formData.role === UserRoleEnum.LAWYER || formData.role === UserRoleEnum.CLIENT;
+
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
       <motion.div
@@ -201,6 +239,7 @@ export default function AddUserModal({ onClose, onSubmit }: AddUserModalProps) {
                 type="button"
                 onClick={() => setStep(1)}
                 className="px-4 py-2 text-gray-600 hover:text-gray-800"
+                disabled={loading}
               >
                 Back
               </button>
@@ -211,25 +250,37 @@ export default function AddUserModal({ onClose, onSubmit }: AddUserModalProps) {
                 type="button"
                 onClick={onClose}
                 className="px-4 py-2 text-gray-600 hover:text-gray-800"
+                disabled={loading}
               >
                 Cancel
               </button>
               
               {step === 1 ? (
-                <button
-                  type="button"
-                  onClick={() => setStep(2)}
-                  className="px-4 py-2 bg-primary-500 text-white rounded-lg hover:bg-primary-600"
-                  disabled={!formData.email || !formData.fullName || !formData.password}
-                >
-                  Next
-                </button>
+                shouldShowStepTwo ? (
+                  <button
+                    type="button"
+                    onClick={() => setStep(2)}
+                    className="px-4 py-2 bg-primary-500 text-white rounded-lg hover:bg-primary-600 disabled:opacity-50"
+                    disabled={!formData.email || !formData.fullName || !formData.password || loading}
+                  >
+                    Next
+                  </button>
+                ) : (
+                  <button
+                    type="submit"
+                    className="px-4 py-2 bg-primary-500 text-white rounded-lg hover:bg-primary-600 disabled:opacity-50"
+                    disabled={!formData.email || !formData.fullName || !formData.password || loading}
+                  >
+                    {loading ? 'Creating...' : 'Create User'}
+                  </button>
+                )
               ) : (
                 <button
                   type="submit"
-                  className="px-4 py-2 bg-primary-500 text-white rounded-lg hover:bg-primary-600"
+                  className="px-4 py-2 bg-primary-500 text-white rounded-lg hover:bg-primary-600 disabled:opacity-50"
+                  disabled={loading}
                 >
-                  Create User
+                  {loading ? 'Creating...' : 'Create User'}
                 </button>
               )}
             </div>

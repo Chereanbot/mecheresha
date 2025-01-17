@@ -1,4 +1,5 @@
 import jwt from 'jsonwebtoken';
+import { showToast } from './toast';
 
 interface LoginCredentials {
   identifier: string;
@@ -73,4 +74,40 @@ export const verifyToken = (token: string) => {
     console.error('Token verification error:', error);
     throw new Error('Invalid token');
   }
+};
+
+export const showAuthError = (error: string) => {
+  showToast(error, 'error');
+};
+
+export const showAuthSuccess = (message: string) => {
+  showToast(message, 'success');
+};
+
+export const showAuthLoading = (message: string) => {
+  return showToast(message, 'loading');
+};
+
+export const getAuthHeaders = () => {
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json'
+  };
+  
+  // Try to get token from localStorage first
+  let token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+  
+  // If no token in localStorage, try to get from cookie
+  if (!token && typeof window !== 'undefined') {
+    const cookies = document.cookie.split(';');
+    const authCookie = cookies.find(c => c.trim().startsWith('auth-token='));
+    if (authCookie) {
+      token = authCookie.split('=')[1].trim();
+    }
+  }
+
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+  
+  return headers;
 }; 

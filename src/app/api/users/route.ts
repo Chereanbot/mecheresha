@@ -1,86 +1,94 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { Role } from '@prisma/client';
-import { verify } from 'jsonwebtoken';
+import { verifyAuth } from '@/lib/auth';
+import { hash } from 'bcryptjs';
 
 export async function GET(request: Request) {
   try {
-    // Get auth token from header
-    const authHeader = request.headers.get('Authorization');
+    const authHeader = request.headers.get('authorization');
     const token = authHeader?.split(' ')[1];
 
-    if (!token) {
+    const authResult = await verifyAuth(token || '');
+
+    if (!authResult.isAuthenticated || !authResult.user) {
       return NextResponse.json(
-        { success: false, error: 'No auth token' },
+        { error: 'Unauthorized access' },
         { status: 401 }
       );
     }
 
-    // Verify token
-    try {
-      verify(token, process.env.JWT_SECRET!);
-    } catch (error) {
+    if (!authResult.user.isAdmin) {
       return NextResponse.json(
-        { success: false, error: 'Invalid token' },
-        { status: 401 }
+        { error: 'Insufficient permissions' },
+        { status: 403 }
       );
-    }
-
-    const { searchParams } = new URL(request.url);
-    const roleParam = searchParams.get('role');
-    
-    // Parse role parameter
-    let where = {};
-    if (roleParam && roleParam !== 'all') {
-      where = { role: roleParam };
     }
 
     const users = await prisma.user.findMany({
-      where,
       select: {
         id: true,
         email: true,
         fullName: true,
         phone: true,
-        role: true,
+        userRole: true,
         status: true,
         emailVerified: true,
         phoneVerified: true,
         createdAt: true,
         updatedAt: true,
+        password: true,
+        isAdmin: true
       },
       orderBy: {
         createdAt: 'desc'
       }
     });
 
+    const formattedUsers = users.map(user => ({
+      id: user.id,
+      email: user.email,
+      fullName: user.fullName,
+      phone: user.phone,
+      userRole: user.userRole,
+      status: user.status,
+      emailVerified: user.emailVerified,
+      phoneVerified: user.phoneVerified,
+      createdAt: user.createdAt,
+      password: user.password
+    }));
+
     return NextResponse.json({
       success: true,
-      data: users
+      users: formattedUsers
     });
 
   } catch (error) {
     console.error('Error fetching users:', error);
     return NextResponse.json(
-      { success: false, error: 'Failed to fetch users' },
+      { error: 'Failed to fetch users' },
       { status: 500 }
     );
   }
 }
 
-// Create new user
 export async function POST(request: Request) {
   try {
     const body = await request.json();
+    
+    // Store the original password before hashing
+    const plainPassword = body.password;
+    // Hash the password for authentication
+    const hashedPassword = await hash(body.password, 10);
 
     const user = await prisma.user.create({
       data: {
         email: body.email,
         phone: body.phone,
-        password: body.password, // Should be hashed before saving
+        password: hashedPassword,
+        plainPassword: plainPassword, // Store original password
         fullName: body.fullName,
         username: body.username,
-        role: body.role,
+        userRole: body.role,
         emailVerified: false,
         phoneVerified: false,
         isAdmin: body.role === 'SUPER_ADMIN' || body.role === 'ADMIN'
@@ -91,7 +99,7 @@ export async function POST(request: Request) {
         phone: true,
         fullName: true,
         username: true,
-        role: true,
+        userRole: true,
         emailVerified: true,
         phoneVerified: true,
         isAdmin: true,
@@ -111,6 +119,149 @@ export async function POST(request: Request) {
       { 
         success: false,
         error: 'Failed to create user',
+        details: process.env.NODE_ENV === 'development' ? error : undefined
+      },
+      { status: 500 }
+    );
+  }
+}
+
+export async function PATCH(request: Request) {
+  try {
+    const authHeader = request.headers.get('authorization');
+    const token = authHeader?.split(' ')[1];
+
+    const authResult = await verifyAuth(token || '');
+
+    if (!authResult.isAuthenticated || !authResult.user) {
+      return NextResponse.json(
+        { error: 'Unauthorized access' },
+        { status: 401 }
+      );
+    }
+
+    if (!authResult.user.isAdmin) {
+      return NextResponse.json(
+        { error: 'Insufficient permissions' },
+        { status: 403 }
+      );
+    }
+
+    const body = await request.json();
+    const { id, ...updateData } = body;
+
+    if (!id) {
+      return NextResponse.json(
+        { error: 'User ID is required' },
+        { status: 400 }
+      );
+    }
+
+    // If password is being updated, hash it and store plain version
+    if (updateData.password) {
+      updateData.plainPassword = updateData.password;
+      updateData.password = await hash(updateData.password, 10);
+    }
+
+    const updatedUser = await prisma.user.update({
+      where: { id },
+      data: {
+        ...updateData,
+        updatedAt: new Date()
+      },
+      select: {
+        id: true,
+        email: true,
+        phone: true,
+        fullName: true,
+        username: true,
+        userRole: true,
+        status: true,
+        emailVerified: true,
+        phoneVerified: true,
+        isAdmin: true,
+        createdAt: true,
+        updatedAt: true
+      }
+    });
+
+    return NextResponse.json({
+      success: true,
+      user: updatedUser,
+      message: 'User updated successfully'
+    });
+
+  } catch (error) {
+    console.error('Error updating user:', error);
+    return NextResponse.json(
+      { 
+        success: false,
+        error: 'Failed to update user',
+        details: process.env.NODE_ENV === 'development' ? error : undefined
+      },
+      { status: 500 }
+    );
+  }
+}
+
+// Add endpoint for resetting password
+export async function PUT(request: Request) {
+  try {
+    const authHeader = request.headers.get('authorization');
+    const token = authHeader?.split(' ')[1];
+
+    const authResult = await verifyAuth(token || '');
+
+    if (!authResult.isAuthenticated || !authResult.user) {
+      return NextResponse.json(
+        { error: 'Unauthorized access' },
+        { status: 401 }
+      );
+    }
+
+    if (!authResult.user.isAdmin) {
+      return NextResponse.json(
+        { error: 'Insufficient permissions' },
+        { status: 403 }
+      );
+    }
+
+    const body = await request.json();
+    const { userId, newPassword } = body;
+
+    if (!userId || !newPassword) {
+      return NextResponse.json(
+        { error: 'User ID and new password are required' },
+        { status: 400 }
+      );
+    }
+
+    const hashedPassword = await hash(newPassword, 10);
+
+    const updatedUser = await prisma.user.update({
+      where: { id: userId },
+      data: {
+        password: hashedPassword,
+        plainPassword: newPassword,
+        updatedAt: new Date()
+      },
+      select: {
+        id: true,
+        email: true
+      }
+    });
+
+    return NextResponse.json({
+      success: true,
+      message: 'Password reset successfully'
+    });
+
+  } catch (error) {
+    console.error('Error resetting password:', error);
+    return NextResponse.json(
+      { 
+        success: false,
+        error: 'Failed to reset password',
         details: process.env.NODE_ENV === 'development' ? error : undefined
       },
       { status: 500 }

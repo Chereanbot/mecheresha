@@ -1,6 +1,15 @@
 class FetchWrapper {
+  private async getAuthHeaders(): Promise<HeadersInit> {
+    return {
+      'Content-Type': 'application/json'
+    };
+  }
+
   async get<T>(url: string): Promise<T> {
-    const response = await fetch(url);
+    const response = await fetch(url, {
+      headers: await this.getAuthHeaders(),
+      credentials: 'include' // Important for sending cookies
+    });
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
     }
@@ -8,11 +17,14 @@ class FetchWrapper {
   }
 
   async post<T>(url: string, data: any): Promise<T> {
+    const headers = data instanceof FormData 
+      ? {} 
+      : await this.getAuthHeaders();
+
     const response = await fetch(url, {
       method: 'POST',
-      headers: data instanceof FormData ? {} : {
-        'Content-Type': 'application/json',
-      },
+      headers,
+      credentials: 'include', // Important for sending cookies
       body: data instanceof FormData ? data : JSON.stringify(data),
     });
     if (!response.ok) {
@@ -24,9 +36,8 @@ class FetchWrapper {
   async patch<T>(url: string, data: any): Promise<T> {
     const response = await fetch(url, {
       method: 'PATCH',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers: await this.getAuthHeaders(),
+      credentials: 'include', // Important for sending cookies
       body: JSON.stringify(data),
     });
     if (!response.ok) {
@@ -38,6 +49,8 @@ class FetchWrapper {
   async delete(url: string): Promise<void> {
     const response = await fetch(url, {
       method: 'DELETE',
+      headers: await this.getAuthHeaders(),
+      credentials: 'include', // Important for sending cookies
     });
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);

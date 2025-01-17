@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { notificationService } from '@/services/notification.service';
 import { getServerSession } from 'next-auth';
+import { NotificationStatus } from '@prisma/client';
+import { NotificationType } from '@prisma/client';
 
 // Get user notifications
 export async function GET(request: Request) {

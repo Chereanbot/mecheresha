@@ -1,49 +1,66 @@
 "use client";
 
-import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { useRouter } from 'next/navigation';
+import React, { createContext, useContext, useState, useEffect } from 'react';
+import { useSession } from 'next-auth/react';
 
 interface User {
   id: string;
   email: string;
-  fullName: string;
   role: string;
-  // Add other user properties as needed
+  userRole: string;
+  isAdmin: boolean;
+  name?: string;
 }
 
 interface AuthContextType {
   user: User | null;
   loading: boolean;
   error: string | null;
-  login: (email: string, password: string) => Promise<void>;
-  logout: () => Promise<void>;
   checkAuth: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-export function AuthProvider({ children }: { children: ReactNode }) {
+export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const router = useRouter();
+  const { data: session, status } = useSession();
 
   const checkAuth = async () => {
     try {
-      const response = await fetch('/api/auth/check', {
-        credentials: 'include'
-      });
+      setLoading(true);
+      setError(null);
 
-      if (!response.ok) {
-        throw new Error('Authentication check failed');
+      if (status === 'loading') {
+        return;
       }
 
-      const data = await response.json();
-      
-      if (data.user) {
-        setUser(data.user);
+      if (status === 'authenticated' && session?.user) {
+        setUser({
+          id: session.user.id,
+          email: session.user.email!,
+          role: session.user.role,
+          userRole: session.user.userRole,
+          isAdmin: session.user.isAdmin,
+          name: session.user.name
+        });
       } else {
-        setUser(null);
+        // Try to get user from API as fallback
+        const response = await fetch('/api/auth/check', {
+          credentials: 'include'
+        });
+
+        if (!response.ok) {
+          throw new Error('Authentication check failed');
+        }
+
+        const data = await response.json();
+        if (data.authenticated && data.user) {
+          setUser(data.user);
+        } else {
+          setUser(null);
+        }
       }
     } catch (error) {
       console.error('Auth check failed:', error);
@@ -54,54 +71,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const login = async (email: string, password: string) => {
-    try {
-      const response = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ email, password }),
-        credentials: 'include'
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || 'Login failed');
-      }
-
-      const data = await response.json();
-      setUser(data.user);
-      setError(null);
-      router.push('/dashboard');
-    } catch (error) {
-      setError(error instanceof Error ? error.message : 'Login failed');
-      throw error;
-    }
-  };
-
-  const logout = async () => {
-    try {
-      await fetch('/api/auth/logout', {
-        method: 'POST',
-        credentials: 'include'
-      });
-      setUser(null);
-      router.push('/login');
-    } catch (error) {
-      console.error('Logout failed:', error);
-    }
-  };
-
   useEffect(() => {
     checkAuth();
-  }, []);
+  }, [status, session]);
 
-  return (
-    <AuthContext.Provider value={{ user, loading, error, login, logout, checkAuth }}>
-      {children}
-    </AuthContext.Provider>
-  );
+  const value = {
+    user,
+    loading,
+    error,
+    checkAuth
+  };
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
 export function useAuth() {

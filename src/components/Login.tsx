@@ -1,83 +1,81 @@
 "use client";
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
+import { toast } from 'react-hot-toast';
 import MatrixBackground from './MatrixBackground';
 import { showToast, hideToast } from '@/utils/toast';
+import { UserRoleEnum } from '@prisma/client';
 
 interface LoginForm {
   identifier: string;
   password: string;
 }
 
+function getRoleBasedRedirect(userRole: string) {
+  switch (userRole) {
+    case 'SUPER_ADMIN':
+    case 'ADMIN':
+      return '/admin/dashboard';
+    case 'LAWYER':
+      return '/lawyer/dashboard';
+    case 'COORDINATOR':
+      return '/coordinator/dashboard';
+    case 'CLIENT':
+      return '/client/dashboard';
+    default:
+      return '/';
+  }
+}
+
 const Login = () => {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const redirect = searchParams.get('redirect');
   const [formData, setFormData] = useState<LoginForm>({
     identifier: '',
     password: ''
   });
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setIsLoading(true);
     setError('');
 
-    if (!formData.identifier || !formData.password) {
-      setError('Please fill in all fields');
-      showToast('Please provide both username/email/phone and password', 'error');
-      return;
-    }
-
     try {
-      setIsLoading(true);
-      const loadingToast = showToast('Authenticating...', 'loading');
-
       const response = await fetch('/api/auth/login', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          email: formData.identifier.trim(),
-          password: formData.password.trim()
-        }),
-        credentials: 'include'
+          email: formData.identifier,
+          password: formData.password
+        })
       });
 
-      let data;
-      const contentType = response.headers.get("content-type");
-      if (contentType && contentType.indexOf("application/json") !== -1) {
-        data = await response.json();
-      } else {
-        throw new Error('Server returned non-JSON response');
-      }
+      const data = await response.json();
 
-      console.log('Server response:', data);
-
-      hideToast(loadingToast);
-
-      if (!response.ok) {
-        throw new Error(data.error || data.message || 'Authentication failed');
-      }
-
-      showToast(data.message || 'Login successful!', 'success');
-
-      // Store token
-      if (data.token) {
+      if (response.ok) {
+        // Store token
         localStorage.setItem('token', data.token);
-        localStorage.setItem('userRole', data.user.role);
+        document.cookie = `auth-token=${data.token}; path=/;`;
+
+        // Get role-based redirect URL
+        const callbackUrl = getRoleBasedRedirect(data.user.userRole);
+        
+        // Use router for client-side navigation
+        router.push(callbackUrl);
+      } else {
+        setError(data.error || 'Login failed');
+        showToast(data.error || 'you should have to enter all required field', 'error');
       }
-
-      // Redirect based on the URL provided by the server
-      setTimeout(() => {
-        window.location.href = data.redirectUrl || '/client/dashboard';
-      }, 1000);
-
-    } catch (error: any) {
+    } catch (error) {
       console.error('Login error:', error);
-      const errorMessage = error.message || 'Failed to login. Please try again.';
-      setError(errorMessage);
-      showToast(errorMessage, 'error', { duration: 5000 });
+      showToast('An error occurred during login.. make sure you are connected to internet or ' );
+      showToast('Login failed. Please try again.', 'error');
     } finally {
       setIsLoading(false);
     }
@@ -88,7 +86,7 @@ const Login = () => {
       <MatrixBackground />
       <div className="auth-container">
         <form onSubmit={handleSubmit} className="auth-form">
-          <h2>Welcome Back</h2>
+          <h2>Welcome Back to DU LAS</h2>
           <p className="text-secondary">
             Please login to your account
           </p>
@@ -108,16 +106,25 @@ const Login = () => {
           </div>
 
           <div className="form-group">
-            <input
-              type="password"
-              className="input-field"
-              placeholder="Password"
-              value={formData.password}
-              onChange={(e) => setFormData({
-                ...formData,
-                password: e.target.value
-              })}
-            />
+            <div className="password-input-wrapper">
+              <input
+                type={showPassword ? "text" : "password"}
+                className="input-field"
+                placeholder="Password"
+                value={formData.password}
+                onChange={(e) => setFormData({
+                  ...formData,
+                  password: e.target.value
+                })}
+              />
+              <button
+                type="button"
+                className="password-toggle"
+                onClick={() => setShowPassword(!showPassword)}
+              >
+                {showPassword ? "Hide" : "Show"}
+              </button>
+            </div>
             <div className="input-highlight"></div>
             {error && <span className="error-text">{error}</span>}
           </div>
@@ -148,4 +155,4 @@ const Login = () => {
   );
 };
 
-export default Login; 
+export default Login;

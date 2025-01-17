@@ -1,26 +1,11 @@
-import { jwtVerify, SignJWT } from 'jose';
+import jwt from 'jsonwebtoken';
 
-const JWT_SECRET = new TextEncoder().encode(
-  process.env.JWT_SECRET || 'your-secret-key'
-);
+const JWT_SECRET = process.env.NEXTAUTH_SECRET!;
 
-export async function verifyAuth(token: string) {
+export async function verifyToken(token: string) {
   try {
-    const { payload } = await jwtVerify(token, JWT_SECRET);
-    return payload;
+    return jwt.verify(token, JWT_SECRET);
   } catch (error) {
-    throw new Error('Invalid token');
-  }
-}
-
-export async function signToken(payload: any) {
-  try {
-    const token = await new SignJWT(payload)
-      .setProtectedHeader({ alg: 'HS256' })
-      .setExpirationTime('24h')
-      .sign(JWT_SECRET);
-    return token;
-  } catch (error) {
-    throw new Error('Failed to sign token');
+    return null;
   }
 } 

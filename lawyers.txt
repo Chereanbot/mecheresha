@@ -40,3 +40,13 @@ A, lawyer operation from admin he take the cases and he related to cases family 
  5, clients operations ... register and .... please give me for the court case {/ask please give me  full needed for the legal aid service forms and for payments service system }
 6, Super admin is control all systems...
 Please add more operations for the lawyer dependent on my idea
+
+
+
+
+the lawyers assigne by admin for each cases that means if  from the clients or from the coordintors if it have .. more complex cases or it is doen't solve by the coordinators ... it should be report for the admins and admins are assign lawyers for that cases .... it going to finish that cases ...
+
+methods for the assign lawyers ...frist this project ideas for the dilla univeersity ... so the lawyers should be teachers
+1, the frist it register all lawyers no the that including here workload and here specializations ... for the frst time 
+
+if the lawyers it doesn't more worlkloads it and it check his speciatiuoties if thos two are so match it should be assign ..for the cases ... when it is assign that cases it should be assigned or disable ...after 1 monthon,, 

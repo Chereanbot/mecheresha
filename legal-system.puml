@@ -1,0 +1,170 @@
+@startuml Legal System Class Diagram
+
+' Style settings
+skinparam classAttributeIconSize 0
+skinparam class {
+    BackgroundColor White
+    ArrowColor Black
+    BorderColor Black
+}
+
+' Enums
+enum UserRoleEnum {
+    SUPER_ADMIN
+    ADMIN
+    LAWYER
+    COORDINATOR
+    CLIENT
+}
+
+enum UserStatus {
+    ACTIVE
+    INACTIVE
+    SUSPENDED
+    BANNED
+}
+
+enum CaseStatus {
+    ACTIVE
+    PENDING
+    RESOLVED
+    CANCELLED
+}
+
+enum Priority {
+    LOW
+    MEDIUM
+    HIGH
+    URGENT
+}
+
+' Base User Class
+class User {
+    -id: String
+    -email: String
+    -phone: String
+    -password: String
+    -fullName: String
+    -username: String
+    -emailVerified: Boolean
+    -phoneVerified: Boolean
+    -userRole: UserRoleEnum
+    -status: UserStatus
+    -isAdmin: Boolean
+    -createdAt: DateTime
+    -updatedAt: DateTime
+    -lastSeen: DateTime
+    -isOnline: Boolean
+    +assignCase(case: Case)
+    +createServiceRequest(request: ServiceRequest)
+    +updateProfile(profile: UserProfile)
+    +manageWorkload(workload: WorkloadMetrics)
+    +scheduleTeaching(schedule: TeachingSchedule)
+}
+
+' Case Management
+class Case {
+    -id: String
+    -title: String
+    -description: String
+    -status: CaseStatus
+    -priority: Priority
+    -category: CaseCategory
+    -clientName: String
+    -clientPhone: String
+    -clientAddress: String
+    -region: String
+    -zone: String
+    -wereda: String
+    -kebele: String
+    -complexityScore: Int
+    -riskLevel: Int
+    -resourceIntensity: Int
+    -stakeholderImpact: Int
+    -totalBillableHours: Float
+    -documentCount: Int
+    -createdAt: DateTime
+    -updatedAt: DateTime
+    +assignLawyer(lawyer: User)
+    +addDocument(document: CaseDocument)
+    +updateStatus(status: CaseStatus)
+    +trackProgress()
+    +calculateMetrics()
+}
+
+' Lawyer Profile
+class LawyerProfile {
+    -id: String
+    -userId: String
+    -experience: Int
+    -rating: Float
+    -caseLoad: Int
+    -availability: Boolean
+    -yearsOfPractice: Int
+    -barAdmissionDate: DateTime
+    -primaryJurisdiction: String
+    -languages: String[]
+    -certifications: String[]
+    -createdAt: DateTime
+    -updatedAt: DateTime
+    +updateAvailability(status: Boolean)
+    +addSpecialization(spec: LawyerSpecialization)
+    +trackPerformance(metrics: Performance)
+    +manageCaseLoad()
+}
+
+' Coordinator
+class Coordinator {
+    -id: String
+    -userId: String
+    -type: CoordinatorType
+    -specialties: String[]
+    -status: CoordinatorStatus
+    -startDate: DateTime
+    -endDate: DateTime
+    -createdAt: DateTime
+    -updatedAt: DateTime
+    +assignProject(project: Project)
+    +manageAssignments(assignment: CoordinatorAssignment)
+    +updateQualifications(qual: Qualification)
+    +createTemplate(template: Template)
+}
+
+' Service Request
+class ServiceRequest {
+    -id: String
+    -title: String
+    -description: String
+    -requirements: String[]
+    -status: RequestStatus
+    -priority: Priority
+    -progress: Int
+    -currentStage: String
+    -nextAction: String
+    -quotedPrice: Float
+    -finalPrice: Float
+    -paymentStatus: PaymentStatus
+    -submittedAt: DateTime
+    -updatedAt: DateTime
+    -approvedAt: DateTime
+    -completedAt: DateTime
+    +processPayment(payment: Payment)
+    +addDocument(document: ServiceDocument)
+    +updateProgress(progress: Int)
+    +sendCommunication(comm: Communication)
+    +scheduleAppointment(appt: Appointment)
+}
+
+' Relationships
+User "1" -- "*" Case : manages >
+User "1" -- "0..1" LawyerProfile : has >
+User "1" -- "0..1" Coordinator : has >
+User "1" -- "*" ServiceRequest : requests >
+
+Case "*" -- "1" LawyerProfile : assigned to >
+Case "*" -- "1" Coordinator : coordinated by >
+
+ServiceRequest "*" -- "1" LawyerProfile : handled by >
+ServiceRequest "*" -- "1" User : requested by >
+
+@enduml 

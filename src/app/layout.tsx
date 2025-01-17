@@ -1,4 +1,4 @@
-import { ThemeProvider } from 'next-themes';
+import { ThemeProvider } from "@/components/ThemeProvider";
 import { LanguageProvider } from '@/contexts/LanguageContext';
 import { NotificationProvider } from '@/contexts/NotificationContext';
 import { AuthProvider } from '@/contexts/AuthContext';
@@ -6,13 +6,17 @@ import localFont from "next/font/local";
 import "./globals.css";
 import '@/styles/auth.scss'
 import { ServiceProvider } from '@/contexts/ServiceContext';
-import { Toaster } from 'react-hot-toast';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import { initializeUploadDirectories } from '@/lib/init';
-import { getServerSession } from 'next-auth';
+import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 import NextAuthProvider from '@/components/providers/SessionProvider';
 import ToastProvider from '@/components/providers/ToastProvider';
+import { headers } from 'next/headers';
+import '@/styles/calendar.css'
+import 'react-day-picker/dist/style.css';
+import { TemplateProvider } from '@/contexts/TemplateContext';
+import { Toaster } from "@/components/ui/toaster"
 
 const geistSans = localFont({
   src: "./fonts/GeistVF.woff",
@@ -36,7 +40,6 @@ export default async function RootLayout({
   children: React.ReactNode;
 }) {
   try {
-    await initializeUploadDirectories();
     const session = await getServerSession(authOptions);
 
     return (
@@ -55,14 +58,21 @@ export default async function RootLayout({
           />
         </head>
         <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
-          <ErrorBoundary>
+          <ErrorBoundary fallback={<div>Something went wrong</div>}>
             <NextAuthProvider session={session}>
               <AuthProvider>
                 <NotificationProvider>
                   <ServiceProvider>
-                    <ThemeProvider attribute="class">
+                    <ThemeProvider
+                      attribute="class"
+                      defaultTheme="system"
+                      enableSystem
+                      disableTransitionOnChange
+                    >
                       <LanguageProvider>
-                        {children}
+                        <TemplateProvider>
+                          {children}
+                        </TemplateProvider>
                       </LanguageProvider>
                     </ThemeProvider>
                   </ServiceProvider>
@@ -70,17 +80,16 @@ export default async function RootLayout({
               </AuthProvider>
             </NextAuthProvider>
           </ErrorBoundary>
-          <ToastProvider />
+          <Toaster />
         </body>
       </html>
     );
   } catch (error) {
     console.error('Root layout error:', error);
-    // Return a minimal layout in case of error
     return (
       <html lang="en">
         <body>
-          <ErrorBoundary>
+          <ErrorBoundary fallback={<div>Something went wrong</div>}>
             {children}
           </ErrorBoundary>
         </body>

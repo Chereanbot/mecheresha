@@ -1,4 +1,6 @@
 import { api } from '@/lib/api';
+import { fetchWrapper } from '@/utils/fetchWrapper';
+import { UserStatus } from '@prisma/client';
 
 interface PaginatedResponse<T> {
   data: T[];
@@ -111,7 +113,7 @@ class UserService {
     };
     
     // Try to get token from localStorage first
-    let token = typeof window !== 'undefined' ? localStorage.getItem('auth-token') : null;
+    let token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
     
     // If no token in localStorage, try to get from cookie
     if (!token && typeof window !== 'undefined') {
@@ -134,25 +136,19 @@ class UserService {
     try {
       const headers = this.getAuthHeaders();
       const queryString = new URLSearchParams(params).toString();
+      
       const response = await fetch(`/api/users${queryString ? `?${queryString}` : ''}`, {
         headers,
         credentials: 'include'
       });
 
       if (!response.ok) {
-        if (response.status === 401) {
-          // Only redirect if we're in the browser
-          if (typeof window !== 'undefined') {
-            window.location.href = '/login?redirect=' + encodeURIComponent(window.location.pathname);
-            return null;
-          }
-          throw new Error('Unauthorized access');
-        }
-        throw new Error(`HTTP error! status: ${response.status}`);
+        const errorData = await response.json();
+        throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
       }
 
       const data = await response.json();
-      return data;
+      return { data: data.users || [], total: data.total };
     } catch (error) {
       console.error('Error fetching users:', error);
       throw error;
@@ -187,7 +183,23 @@ class UserService {
   }
 
   async assignRoleToUser(userId: string, roleId: string): Promise<void> {
-    await api.post(`/api/users/${userId}/roles`, { roleId });
+    try {
+      const response = await fetch(`/api/users/${userId}/roles`, {
+        method: 'POST',
+        headers: this.getAuthHeaders(),
+        body: JSON.stringify({ roleId })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to assign role');
+      }
+
+      await response.json();
+    } catch (error) {
+      console.error('Error assigning role:', error);
+      throw error;
+    }
   }
 
   async removeRoleFromUser(userId: string, roleId: string): Promise<void> {
@@ -205,25 +217,52 @@ class UserService {
     experience?: number;
     company?: string;
     address?: string;
-  }): Promise<User> {
+  }) {
     try {
+      console.log('Sending registration request:', { ...data, password: '[REDACTED]' });
+
       const response = await fetch('/api/users/register', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          Accept: 'application/json',
+          ...this.getAuthHeaders()
         },
+        credentials: 'include',
         body: JSON.stringify(data),
       });
 
-      const result = await response.json();
-      
-      if (!result.success) {
-        throw new Error(result.error || 'Failed to register user');
+      console.log('Registration response status:', response.status);
+      const responseText = await response.text();
+      console.log('Registration response text:', responseText);
+
+      let result;
+      try {
+        result = responseText ? JSON.parse(responseText) : null;
+      } catch (parseError) {
+        console.error('Failed to parse response:', parseError);
+        throw new Error('Invalid server response');
       }
 
-      return result;
+      if (!response.ok) {
+        throw new Error(result?.error || `HTTP error! status: ${response.status}`);
+      }
+
+      if (!result?.success) {
+        throw new Error(result?.error || 'Failed to register user');
+      }
+
+      return {
+        success: true,
+        data: result.data.user,
+        message: result.data.message
+      };
     } catch (error: any) {
-      throw new Error(error.message || 'Failed to register user');
+      console.error('Registration error:', error);
+      return {
+        success: false,
+        error: error.message || 'Failed to register user'
+      };
     }
   }
 
@@ -306,21 +345,24 @@ class UserService {
       });
 
       if (!response.ok) {
-        if (response.status === 401) {
-          if (typeof window !== 'undefined') {
-            window.location.href = '/login?redirect=' + encodeURIComponent(window.location.pathname);
-            return null;
-          }
-          throw new Error('Unauthorized access');
-        }
-        throw new Error(`HTTP error! status: ${response.status}`);
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to fetch user stats');
       }
 
       const data = await response.json();
       return data;
     } catch (error) {
       console.error('Error fetching user stats:', error);
-      throw error;
+      // Return default stats object on error to prevent UI breaking
+      return {
+        overview: {
+          total: 0,
+          active: 0,
+          pending: 0,
+          blocked: 0,
+          newToday: 0
+        }
+      };
     }
   }
 
@@ -444,6 +486,24 @@ class UserService {
       }
     } catch (error) {
       console.error('Logout error:', error);
+      throw error;
+    }
+  }
+
+  async getUserRoles(userId: string) {
+    try {
+      const response = await fetch(`/api/users/${userId}/roles`, {
+        headers: this.getAuthHeaders(),
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch user roles');
+      }
+      
+      const data = await response.json();
+      return data.roles;
+    } catch (error) {
+      console.error('Error fetching user roles:', error);
       throw error;
     }
   }
